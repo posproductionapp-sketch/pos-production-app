@@ -1,8 +1,4 @@
-"""Executable checks for docs/architecture/CONTRACTS.md.
-
-Uses only the Python standard library so the architecture gate can run before
-an application framework/build stack is selected.
-"""
+"""Executable checks for docs/architecture/CONTRACTS.md."""
 
 from __future__ import annotations
 
@@ -60,17 +56,11 @@ class ArchitectureContracts(unittest.TestCase):
                 violations.append(str(path.relative_to(ROOT)))
         self.assertFalse(violations, "Configuration must be environment-driven and contain no committed secrets: " + ", ".join(violations))
 
-    def test_database_phase_gate_remains_closed(self):
-        database_root = SRC / "infrastructure" / "database"
-        implementation_files = [
-            p for p in database_root.rglob("*")
-            if p.is_file()
-            and "__pycache__" not in p.parts
-            and p.name != ".gitkeep"
-            and p.suffix in CODE_SUFFIXES
-            and p.stat().st_size > 0
-        ] if database_root.exists() else []
-        self.assertFalse(implementation_files, "Database implementation is blocked until the Database Decision Gate is approved: " + ", ".join(str(p.relative_to(ROOT)) for p in implementation_files))
+    def test_database_phase_gate_is_open_after_approval(self):
+        gate = ROOT / "docs" / "architecture" / "DB_GATE_REVIEW.md"
+        content = text(gate)
+        self.assertIn("Status: APPROVED", content)
+        self.assertIn("Database implementation is authorized", content)
 
 
 if __name__ == "__main__":
