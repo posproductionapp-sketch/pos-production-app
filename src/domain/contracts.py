@@ -37,6 +37,11 @@ class LineItem:
 class Cart:
     items: tuple[LineItem, ...]
 
+    def __post_init__(self) -> None:
+        currencies = {item.unit_price.currency for item in self.items}
+        if len(currencies) > 1:
+            raise ValueError("Cart items must use one currency")
+
     def subtotal(self) -> Money:
         if not self.items:
             return Money(Decimal("0"))
