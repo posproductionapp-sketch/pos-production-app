@@ -3,11 +3,11 @@ import pytest
 from src.config.settings import Settings
 
 
-def test_runtime_settings_require_database_and_long_auth_secret():
+def test_production_requires_database_and_long_auth_secret():
     with pytest.raises(RuntimeError, match="DATABASE_URL"):
-        Settings(environment="development", database_url="", auth_secret="x" * 32).validate_runtime()
+        Settings(environment="production", database_url="", auth_secret="x" * 32).validate_runtime()
     with pytest.raises(RuntimeError, match="AUTH_SECRET"):
-        Settings(environment="development", database_url="sqlite://", auth_secret="short").validate_runtime()
+        Settings(environment="production", database_url="postgresql://db/pos", auth_secret="short").validate_runtime()
 
 
 def test_production_requires_postgresql():
@@ -22,3 +22,7 @@ def test_valid_production_settings_pass():
         database_url="postgresql+psycopg://pos:secret@db/pos",
         auth_secret="x" * 32,
     ).validate_runtime()
+
+
+def test_development_does_not_require_deployment_secrets():
+    Settings(environment="development", database_url="", auth_secret="").validate_runtime()
