@@ -12,6 +12,22 @@ jobs:
   architecture:
     name: Architecture contracts and tests
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: pos
+          POSTGRES_PASSWORD: pos
+          POSTGRES_DB: pos_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pos -d pos_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql+psycopg://pos:pos@localhost:5432/pos_test
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -22,14 +38,26 @@ jobs:
           python-version: '3.12'
           cache: pip
 
-      - name: Install test dependencies
-        run: python -m pip install --upgrade pip pytest
+      - name: Install project test dependencies
+        run: python -m pip install --upgrade pip && pip install -e ".[test]"
 
       - name: Run executable architecture contracts
         run: python tests/architecture/test_contracts.py
 
+      - name: Compile Python sources
+        run: python -m compileall -q src tests
+
       - name: Run unit and integration tests
         run: python -m pytest -q
 
-      - name: Compile Python sources
-        run: python -m compileall -q src tests
+      - name: Upgrade database to head
+        run: alembic upgrade head
+
+      - name: Verify database connectivity
+        run: python -c "from sqlalchemy import create_engine, text; import os; e=create_engine(os.environ['DATABASE_URL']); c=e.connect(); assert c.execute(text('select 1')).scalar()==1"
+
+      - name: Verify downgrade and upgrade cycle
+        run: alembic downgrade base && alembic upgrade head
+
+      - name: Verify upgrade idempotency
+        run: alembic upgrade head
