@@ -1,5 +1,7 @@
+from datetime import datetime, timezone
+
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session, sessionmaker
 
 from src.api.main import app, get_session
@@ -10,14 +12,20 @@ from src.domain.auth import Role
 
 def test_login_and_protected_me_flow():
     engine = create_engine("sqlite+pysqlite:///:memory:")
+
+    @event.listens_for(engine, "connect")
+    def register_now(dbapi_connection, _):
+        dbapi_connection.create_function("now", 0, lambda: datetime.now(timezone.utc).isoformat(sep=" "))
+
     Base.metadata.create_all(engine)
     factory = sessionmaker(bind=engine, class_=Session, expire_on_commit=False)
     with factory() as session:
-        session.add(StoreModel(id="store", tenant_id="tenant", name="Test"))
+        session.add(StoreModel(id="store", tenant_id="tenant", name="Test", created_at=datetime.now(timezone.utc)))
         session.flush()
-        AuthService(session, "x" * 32).create_user(
+        user = AuthService(session, "x" * 32).create_user(
             tenant_id="tenant", store_id="store", username="cashier", password="correct horse battery staple", roles={Role.CASHIER}
         )
+        user.created_at = datetime.now(timezone.utc)
         session.commit()
 
     def override_session():
