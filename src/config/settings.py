@@ -1,6 +1,6 @@
 """Environment-driven application configuration.
 
-No credentials or API keys belong in source control.
+Secrets are loaded from environment/deployment secret storage only.
 """
 
 from dataclasses import dataclass
@@ -10,10 +10,18 @@ import os
 @dataclass(frozen=True)
 class Settings:
     environment: str
+    database_url: str
+    auth_secret: str
     openai_api_key: str | None = None
 
 
 def load_settings() -> Settings:
     environment = os.getenv("APP_ENV", "development")
-    api_key = os.getenv("OPENAI_API_KEY")
-    return Settings(environment=environment, openai_api_key=api_key)
+    database_url = os.getenv("DATABASE_URL", "")
+    auth_secret = os.getenv("AUTH_SECRET", "")
+    return Settings(
+        environment=environment,
+        database_url=database_url,
+        auth_secret=auth_secret,
+        openai_api_key=os.getenv("OPENAI_API_KEY"),
+    )

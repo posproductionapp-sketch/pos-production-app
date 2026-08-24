@@ -1,13 +1,9 @@
-"""SQLAlchemy mappings for the approved POS schema.
-
-This module contains persistence mappings only; domain objects remain
-infrastructure-agnostic.
-"""
+"""SQLAlchemy mappings for the approved POS schema."""
 
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import DateTime, ForeignKey, Index, Numeric, String, Text, UniqueConstraint, text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Numeric, String, Text, UniqueConstraint, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -148,4 +144,31 @@ class IdempotencyKeyModel(Base):
     operation: Mapped[str] = mapped_column(String(100), nullable=False)
     key: Mapped[str] = mapped_column(String(200), nullable=False)
     result_reference: Mapped[str] = mapped_column(String(200), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=_NOW)
+
+
+class UserModel(Base):
+    __tablename__ = "users"
+    __table_args__ = (UniqueConstraint("tenant_id", "username", name="uq_user_tenant_username"),)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    store_id: Mapped[str] = mapped_column(ForeignKey("stores.id"), nullable=False, index=True)
+    username: Mapped[str] = mapped_column(String(200), nullable=False)
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    roles: Mapped[str] = mapped_column(String(500), nullable=False)
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=_NOW)
+
+
+class SyncCommandModel(Base):
+    __tablename__ = "sync_commands"
+    __table_args__ = (UniqueConstraint("tenant_id", "store_id", "command_id", name="uq_sync_command_scope"),)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    store_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    command_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    operation: Mapped[str] = mapped_column(String(100), nullable=False)
+    payload_json: Mapped[str] = mapped_column(Text, nullable=False)
+    result_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    state: Mapped[str] = mapped_column(String(32), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=_NOW)
