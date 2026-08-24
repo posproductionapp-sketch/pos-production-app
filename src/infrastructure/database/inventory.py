@@ -1,5 +1,6 @@
 """Concurrency-safe inventory persistence adapter."""
 
+from datetime import datetime, timezone
 from decimal import Decimal
 from uuid import uuid4
 
@@ -36,6 +37,6 @@ class SqlAlchemyInventoryRepository:
         if new_quantity < 0:
             raise InventoryInsufficientStock("Inventory cannot become negative")
         row.quantity = new_quantity
-        self.session.add(InventoryMovementModel(id=str(uuid4()), store_id=self.store_id, variant_id=variant_id, quantity_delta=delta, reason=reason, correlation_id=correlation_id))
+        self.session.add(InventoryMovementModel(id=str(uuid4()), store_id=self.store_id, variant_id=variant_id, quantity_delta=delta, reason=reason, correlation_id=correlation_id, created_at=datetime.now(timezone.utc)))
         self.session.flush()
         return new_quantity
