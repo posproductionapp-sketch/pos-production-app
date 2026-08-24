@@ -17,9 +17,9 @@ class CheckoutExecution:
 class CheckoutOrchestrator:
     """Coordinate stock and payment without owning external implementations.
 
-    Ordering is deliberate: reserve stock first, authorize payment second.
-    If payment fails, the reservation is released. If payment succeeds, the
-    reservation remains held for the later order/persistence phase.
+    Stock is reserved for every cart line before payment authorization. Any
+    failed reservation or payment authorization compensates all reservations
+    already acquired in this execution.
     """
 
     def __init__(
@@ -34,16 +34,27 @@ class CheckoutOrchestrator:
 
     def execute(self, request: CheckoutRequest, payment: Payment) -> CheckoutExecution:
         quote = self._checkout.quote(request)
-        reservation = StockReservation(
-            product_id=request.cart.items[0].product_id,
-            quantity=request.cart.items[0].quantity,
-        )
-
-        if not self._inventory.reserve(reservation):
+        if not request.cart.items:
+            return CheckoutExecution(quote, payment_approved=False, stock_reserved=False)
+        if payment.amount.currency != quote.total.currency or payment.amount.amount != quote.total.amount:
             return CheckoutExecution(quote, payment_approved=False, stock_reserved=False)
 
+        reservations = [
+            StockReservation(item.product_id, item.quantity)
+            for item in request.cart.items
+        ]
+        reserved: list[StockReservation] = []
+
+        for reservation in reservations:
+            if not self._inventory.reserve(reservation):
+                for acquired in reversed(reserved):
+                    self._inventory.release(acquired)
+                return CheckoutExecution(quote, payment_approved=False, stock_reserved=False)
+            reserved.append(reservation)
+
         if not self._payments.authorize(payment):
-            self._inventory.release(reservation)
+            for acquired in reversed(reserved):
+                self._inventory.release(acquired)
             return CheckoutExecution(quote, payment_approved=False, stock_reserved=False)
 
         return CheckoutExecution(quote, payment_approved=True, stock_reserved=True)
