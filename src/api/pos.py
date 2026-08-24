@@ -14,7 +14,7 @@ from src.infrastructure.database.catalog import CatalogRepository
 from src.infrastructure.database.idempotency import SqlAlchemyIdempotencyRepository
 from src.infrastructure.database.inventory import InventoryInsufficientStock, SqlAlchemyInventoryRepository
 from src.infrastructure.database.models import OrderItemModel, OrderModel, PaymentModel, ProductVariantModel
-from src.infrastructure.database.payment import RefundExceedsPayment, SqlAlchemyPaymentRepository, SqlAlchemyRefundRepository
+from src.infrastructure.database.payment import PaymentConflict, RefundExceedsPayment, SqlAlchemyPaymentRepository, SqlAlchemyRefundRepository
 from src.infrastructure.database.shifts import ShiftRepository
 
 
@@ -125,7 +125,16 @@ def build_pos_router(principal_dependency, session_dependency) -> APIRouter:
             session.add(order)
             for variant, price, quantity in prepared:
                 session.add(OrderItemModel(id=str(uuid4()), order_id=order_id, sku=variant.sku, description=variant.description, quantity=quantity, unit_amount=price.amount, tax_amount=Decimal("0"), discount_amount=Decimal("0"), currency=price.currency))
-            payment = SqlAlchemyPaymentRepository(session).record(order_id=order_id, provider=payload.payment_method, provider_reference=payload.payment_reference, amount=total, currency=currency, state="captured")
+            try:
+                payment = SqlAlchemyPaymentRepository(session).record(order_id=order_id, provider=payload.payment_method, provider_reference=payload.payment_reference, amount=total, currency=currency, state="captured")
+            except (PaymentConflict, ValueError) as exc:
+                raise HTTPException(status_code=409, detail=str(exc)) from exc
+            if payload.payment_method.lower() == "cash":
+                shift_repo = ShiftRepository(session, tenant_id=current.tenant_id, store_id=current.store_id)
+                shift = shift_repo.current()
+                if shift is None:
+                    raise HTTPException(status_code=409, detail="An open shift is required for cash sales")
+                shift_repo.add_cash_movement(shift_id=shift.id, movement_type="sale", amount=total, reason="cash sale", actor_id=current.user_id, correlation_id=order_id)
             idem.reserve(operation, idempotency_key, order_id)
             return {"order_id": order_id, "payment_id": payment.id, "state": order.state, "total": str(total), "currency": currency, "duplicate": False}
 
@@ -159,6 +168,12 @@ def build_pos_router(principal_dependency, session_dependency) -> APIRouter:
                     if variant is None:
                         raise HTTPException(status_code=409, detail=f"Variant for SKU {item.sku} not found")
                     inventory.adjust(variant_id=variant.id, delta=item.quantity * fraction, reason="refund_restock", correlation_id=payload.correlation_id)
+            if payment.provider.lower() == "cash":
+                shift_repo = ShiftRepository(session, tenant_id=current.tenant_id, store_id=current.store_id)
+                shift = shift_repo.current()
+                if shift is None:
+                    raise HTTPException(status_code=409, detail="An open shift is required for cash refunds")
+                shift_repo.add_cash_movement(shift_id=shift.id, movement_type="refund", amount=payload.amount, reason="cash refund", actor_id=current.user_id, correlation_id=payload.correlation_id)
             idem.reserve(operation, idempotency_key, refund_id)
             return {"refund_id": refund_id, "payment_id": payment.id, "amount": str(refund.amount), "duplicate": False}
 
