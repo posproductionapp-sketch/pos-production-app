@@ -1,0 +1,1 @@
+Persistence phase: order repository and explicit transaction boundary are implemented. Integration coverage verifies round-trip persistence and rollback semantics. Next quality gate should execute the complete suite against PostgreSQL 16.
