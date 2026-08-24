@@ -1,3 +1,4 @@
+import os
 from datetime import datetime, timezone
 
 from fastapi.testclient import TestClient
@@ -19,20 +20,19 @@ def test_login_and_protected_me_flow():
 
     Base.metadata.create_all(engine)
     factory = sessionmaker(bind=engine, class_=Session, expire_on_commit=False)
+    secret = "x" * 32
     with factory() as session:
         session.add(StoreModel(id="store", tenant_id="tenant", name="Test", created_at=datetime.now(timezone.utc)))
         session.flush()
-        user = AuthService(session, "x" * 32).create_user(
+        user = AuthService(session, secret).create_user(
             tenant_id="tenant", store_id="store", username="cashier", password="correct horse battery staple", roles={Role.CASHIER}
         )
         user.created_at = datetime.now(timezone.utc)
         session.commit()
 
-    def override_session():
-        with factory() as session:
-            yield session
-
-    app.dependency_overrides[get_session] = override_session
+    previous_secret = os.environ.get("AUTH_SECRET")
+    os.environ["AUTH_SECRET"] = secret
+    app.dependency_overrides[get_session] = lambda: (session for session in [factory()])
     try:
         client = TestClient(app)
         login = client.post("/v1/auth/login", json={"tenant_id": "tenant", "username": "cashier", "password": "correct horse battery staple"})
@@ -43,4 +43,8 @@ def test_login_and_protected_me_flow():
         assert me.json()["store_id"] == "store"
     finally:
         app.dependency_overrides.clear()
+        if previous_secret is None:
+            os.environ.pop("AUTH_SECRET", None)
+        else:
+            os.environ["AUTH_SECRET"] = previous_secret
         engine.dispose()
