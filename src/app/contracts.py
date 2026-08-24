@@ -1,11 +1,11 @@
-"""Application-layer contracts.
+"""Application-layer data contracts and service ports.
 
-Application code coordinates domain policies and ports; it does not own
-vendor SDKs or persistence implementations.
+Application code coordinates domain policies and ports; concrete business
+implementations belong in the services layer.
 """
 
 from dataclasses import dataclass
-from decimal import Decimal
+from typing import Protocol
 
 from src.domain.contracts import Cart, Money
 
@@ -36,22 +36,8 @@ class PaymentResult:
     amount: Money
 
 
-class CheckoutService:
-    """Orchestrates deterministic checkout policies.
-
-    Concrete implementations belong in the application/services layer and
-    receive explicit domain policies through dependency injection.
-    """
-
-    def __init__(self, pricing, discount, vat) -> None:
-        self._pricing = pricing
-        self._discount = discount
-        self._vat = vat
+class CheckoutServicePort(Protocol):
+    """Port consumed by checkout orchestration."""
 
     def quote(self, request: CheckoutRequest) -> CheckoutResult:
-        subtotal = request.cart.subtotal()
-        discount = self._discount.calculate(request.cart)
-        taxable = Money(subtotal.amount - discount.amount, subtotal.currency)
-        vat = self._vat.calculate(taxable)
-        total = Money(taxable.amount + vat.amount, taxable.currency)
-        return CheckoutResult(subtotal, discount, vat, total)
+        """Produce a deterministic checkout quote."""
