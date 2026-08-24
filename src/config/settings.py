@@ -15,13 +15,16 @@ class Settings:
     openai_api_key: str | None = None
 
     def validate_runtime(self) -> None:
-        """Fail closed when the application is missing required runtime configuration."""
-        if not self.database_url:
-            raise RuntimeError("DATABASE_URL is required")
-        if len(self.auth_secret) < 32:
-            raise RuntimeError("AUTH_SECRET must be at least 32 characters")
-        if self.environment == "production" and not self.database_url.startswith(("postgresql://", "postgresql+psycopg://")):
-            raise RuntimeError("Production DATABASE_URL must use PostgreSQL")
+        """Fail closed for production while keeping local/unit test boot lightweight."""
+        if self.environment == "production":
+            if not self.database_url:
+                raise RuntimeError("DATABASE_URL is required")
+            if len(self.auth_secret) < 32:
+                raise RuntimeError("AUTH_SECRET must be at least 32 characters")
+            if not self.database_url.startswith(("postgresql://", "postgresql+psycopg://")):
+                raise RuntimeError("Production DATABASE_URL must use PostgreSQL")
+        elif self.database_url and len(self.auth_secret) < 32:
+            raise RuntimeError("AUTH_SECRET must be at least 32 characters when configured")
 
 
 def load_settings() -> Settings:
