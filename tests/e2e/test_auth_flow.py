@@ -32,7 +32,12 @@ def test_login_and_protected_me_flow():
 
     previous_secret = os.environ.get("AUTH_SECRET")
     os.environ["AUTH_SECRET"] = secret
-    app.dependency_overrides[get_session] = lambda: (session for session in [factory()])
+
+    def override_session():
+        with factory() as session:
+            yield session
+
+    app.dependency_overrides[get_session] = override_session
     try:
         client = TestClient(app)
         login = client.post("/v1/auth/login", json={"tenant_id": "tenant", "username": "cashier", "password": "correct horse battery staple"})
