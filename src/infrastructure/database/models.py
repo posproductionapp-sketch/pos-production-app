@@ -7,7 +7,7 @@ infrastructure-agnostic.
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import DateTime, ForeignKey, Numeric, String, Text, UniqueConstraint
+from sqlalchemy import DateTime, ForeignKey, Numeric, String, Text, UniqueConstraint, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -15,12 +15,15 @@ class Base(DeclarativeBase):
     pass
 
 
+_NOW = text("now()")
+
+
 class StoreModel(Base):
     __tablename__ = "stores"
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     tenant_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default="now()")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=_NOW)
 
 
 class ProductModel(Base):
@@ -28,7 +31,7 @@ class ProductModel(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     store_id: Mapped[str] = mapped_column(ForeignKey("stores.id"), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default="now()")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=_NOW)
 
 
 class ProductVariantModel(Base):
@@ -57,8 +60,8 @@ class OrderModel(Base):
     state: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
     total_amount: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
     currency: Mapped[str] = mapped_column(String(3), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default="now()")
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default="now()")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=_NOW)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=_NOW)
 
 
 class OrderItemModel(Base):
@@ -81,7 +84,7 @@ class InventoryBalanceModel(Base):
     store_id: Mapped[str] = mapped_column(ForeignKey("stores.id"), nullable=False, index=True)
     variant_id: Mapped[str] = mapped_column(ForeignKey("product_variants.id"), nullable=False, index=True)
     quantity: Mapped[Decimal] = mapped_column(Numeric(18, 3), nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default="now()")
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=_NOW)
 
 
 class InventoryMovementModel(Base):
@@ -92,7 +95,7 @@ class InventoryMovementModel(Base):
     quantity_delta: Mapped[Decimal] = mapped_column(Numeric(18, 3), nullable=False)
     reason: Mapped[str] = mapped_column(String(64), nullable=False)
     correlation_id: Mapped[str] = mapped_column(String(100), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default="now()")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=_NOW)
 
 
 class PaymentModel(Base):
@@ -105,7 +108,7 @@ class PaymentModel(Base):
     amount: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
     currency: Mapped[str] = mapped_column(String(3), nullable=False)
     state: Mapped[str] = mapped_column(String(32), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default="now()")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=_NOW)
 
 
 class RefundModel(Base):
@@ -116,7 +119,7 @@ class RefundModel(Base):
     currency: Mapped[str] = mapped_column(String(3), nullable=False)
     state: Mapped[str] = mapped_column(String(32), nullable=False)
     provider_reference: Mapped[str] = mapped_column(String(200), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default="now()")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=_NOW)
 
 
 class AuditLogModel(Base):
@@ -130,7 +133,7 @@ class AuditLogModel(Base):
     resource_id: Mapped[str] = mapped_column(String(100), nullable=False)
     correlation_id: Mapped[str] = mapped_column(String(100), nullable=False)
     metadata_json: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default="now()")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=_NOW)
 
 
 class IdempotencyKeyModel(Base):
@@ -142,4 +145,4 @@ class IdempotencyKeyModel(Base):
     operation: Mapped[str] = mapped_column(String(100), nullable=False)
     key: Mapped[str] = mapped_column(String(200), nullable=False)
     result_reference: Mapped[str] = mapped_column(String(200), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default="now()")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=_NOW)
