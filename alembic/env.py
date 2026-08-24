@@ -1,10 +1,12 @@
-"""Alembic environment for the pre-database decision phase."""
+"""Alembic environment for the approved production database phase."""
 
 from logging.config import fileConfig
 import os
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
+
+from src.infrastructure.database.models import Base
 
 config = context.config
 if config.config_file_name:
@@ -14,10 +16,7 @@ url = os.getenv("DATABASE_URL")
 if url:
     config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
 
-# Database implementation is intentionally unavailable until the Database
-# Decision Gate is approved. Alembic remains executable so CI can validate the
-# database toolchain without importing phase-gated ORM implementation.
-target_metadata = None
+target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:
