@@ -21,7 +21,14 @@ def get_session():
         _engine = create_engine_from_env()
         _SessionLocal = session_factory(_engine)
     with _SessionLocal() as session:
-        yield session
+        try:
+            yield session
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            if session.in_transaction():
+                session.rollback()
 
 
 class LoginRequest(BaseModel):
@@ -59,8 +66,10 @@ def health() -> dict[str, str]:
 def login(request: LoginRequest, session: Session = Depends(get_session)) -> LoginResponse:
     try:
         token = AuthService(session, load_settings().auth_secret).login(tenant_id=request.tenant_id, username=request.username, password=request.password)
+        session.commit()
         return LoginResponse(access_token=token)
     except (AuthenticationError, ValueError) as exc:
+        session.rollback()
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials") from exc
 
 
@@ -73,6 +82,6 @@ def me(current=Depends(principal)) -> dict:
 def sync_command(request: SyncRequest, current=Depends(principal), session: Session = Depends(get_session)) -> dict:
     current.require(Role.CASHIER, Role.MANAGER, Role.ADMIN)
     repository = SqlAlchemySyncRepository(session, tenant_id=current.tenant_id, store_id=current.store_id)
-    with session.begin():
-        command = repository.record_received(command_id=request.command_id, operation=request.operation, payload=request.payload)
+    command = repository.record_received(command_id=request.command_id, operation=request.operation, payload=request.payload)
+    session.commit()
     return {"command_id": command.command_id, "state": command.state, "duplicate": command.result_json is not None}
