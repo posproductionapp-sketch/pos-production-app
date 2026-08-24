@@ -14,7 +14,15 @@ from src.infrastructure.database.session import create_engine_from_env, session_
 from src.infrastructure.database.sync import SqlAlchemySyncRepository
 from src.api.pos import build_pos_router
 
-app = FastAPI(title="POS Production API", version="0.3.0")
+_settings = load_settings()
+_docs_enabled = _settings.environment != "production"
+app = FastAPI(
+    title="POS Production API",
+    version="0.3.0",
+    docs_url="/docs" if _docs_enabled else None,
+    redoc_url="/redoc" if _docs_enabled else None,
+    openapi_url="/openapi.json" if _docs_enabled else None,
+)
 _engine = None
 _SessionLocal = None
 
@@ -27,12 +35,16 @@ async def production_headers(request: Request, call_next):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
     response.headers["Cache-Control"] = "no-store" if request.url.path.startswith("/v1/") else "no-cache"
+    if request.url.scheme == "https" or _settings.environment == "production":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     return response
 
 
 def get_session():
     global _engine, _SessionLocal
+    _settings.validate_runtime()
     if _SessionLocal is None:
         _engine = create_engine_from_env()
         _SessionLocal = session_factory(_engine)
