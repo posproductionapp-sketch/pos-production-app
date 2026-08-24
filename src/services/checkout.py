@@ -21,6 +21,10 @@ class CheckoutService:
         discount = self._discount.calculate(request.cart)
         if discount.currency != subtotal.currency:
             raise ValueError("Discount currency must match subtotal currency")
+        if discount.amount < 0:
+            raise ValueError("Discount cannot be negative")
+        if discount.amount > subtotal.amount:
+            raise ValueError("Discount cannot exceed subtotal")
         taxable = Money(subtotal.amount - discount.amount, subtotal.currency)
         vat = self._vat.calculate(taxable)
         total = Money(taxable.amount + vat.amount, taxable.currency)

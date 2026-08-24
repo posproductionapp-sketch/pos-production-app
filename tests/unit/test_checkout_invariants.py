@@ -1,12 +1,15 @@
 from decimal import Decimal
 
-import pytest
-
 from src.app.checkout_orchestration import CheckoutOrchestrator
-from src.app.contracts import CheckoutRequest, CheckoutService
+from src.app.contracts import CheckoutRequest
 from src.domain.contracts import Cart, LineItem, Money
 from src.domain.payment_stock import Payment
-from src.services.deterministic_pricing import PercentageDiscountPolicy, VatRatePolicy
+from src.services.checkout import CheckoutService
+from src.services.deterministic_pricing import (
+    PercentageDiscountPolicy,
+    SubtotalPricingPolicy,
+    VatRatePolicy,
+)
 
 
 class Inventory:
@@ -35,7 +38,11 @@ class Payments:
 
 
 def service():
-    return CheckoutService(None, PercentageDiscountPolicy(Decimal("0.10")), VatRatePolicy(Decimal("0.07")))
+    return CheckoutService(
+        SubtotalPricingPolicy(),
+        PercentageDiscountPolicy(Decimal("0.10")),
+        VatRatePolicy(Decimal("0.07")),
+    )
 
 
 def test_multiple_reservations_are_compensated_atomically():
