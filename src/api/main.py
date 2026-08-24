@@ -1,5 +1,6 @@
 """HTTP API boundary; business decisions remain in application/domain layers."""
 
+import time
 from uuid import uuid4
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response, status
@@ -13,6 +14,7 @@ from src.infrastructure.database.auth import AuthService, AuthenticationError
 from src.infrastructure.database.session import create_engine_from_env, session_factory
 from src.infrastructure.database.sync import SqlAlchemySyncRepository
 from src.api.pos import build_pos_router
+from src.observability import metrics
 
 _settings = load_settings()
 _docs_enabled = _settings.environment != "production"
@@ -30,7 +32,15 @@ _SessionLocal = None
 @app.middleware("http")
 async def production_headers(request: Request, call_next):
     request_id = request.headers.get("X-Request-ID") or str(uuid4())
-    response: Response = await call_next(request)
+    started = time.perf_counter()
+    try:
+        response: Response = await call_next(request)
+    except Exception:
+        duration_ms = (time.perf_counter() - started) * 1000
+        metrics.observe(method=request.method, path=request.url.path, status=500, duration_ms=duration_ms)
+        raise
+    duration_ms = (time.perf_counter() - started) * 1000
+    metrics.observe(method=request.method, path=request.url.path, status=response.status_code, duration_ms=duration_ms)
     response.headers["X-Request-ID"] = request_id
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
@@ -94,6 +104,11 @@ def health() -> dict[str, str]:
 def ready(session: Session = Depends(get_session)) -> dict[str, str]:
     session.execute(text("select 1"))
     return {"status": "ready"}
+
+
+@app.get("/metrics")
+def metrics_endpoint() -> dict[str, object]:
+    return metrics.snapshot()
 
 
 @app.post("/v1/auth/login", response_model=LoginResponse)
