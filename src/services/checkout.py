@@ -4,8 +4,6 @@ This service composes domain pricing policies without depending on persistence,
 HTTP, AI, or vendor SDKs.
 """
 
-from dataclasses import dataclass
-
 from src.app.contracts import CheckoutRequest, CheckoutResult
 from src.domain.contracts import Money
 
@@ -21,9 +19,9 @@ class CheckoutService:
     def quote(self, request: CheckoutRequest) -> CheckoutResult:
         subtotal = self._pricing.price(request.cart)
         discount = self._discount.calculate(request.cart)
+        if discount.currency != subtotal.currency:
+            raise ValueError("Discount currency must match subtotal currency")
         taxable = Money(subtotal.amount - discount.amount, subtotal.currency)
-        if taxable.amount < 0:
-            raise ValueError("Discount cannot exceed subtotal")
         vat = self._vat.calculate(taxable)
         total = Money(taxable.amount + vat.amount, taxable.currency)
         return CheckoutResult(subtotal, discount, vat, total)
