@@ -26,7 +26,7 @@ def session():
 def test_inventory_rejects_negative_stock_and_records_movements(session):
     now = datetime.now(timezone.utc)
     product = ProductModel(id="product-1", store_id="store-1", name="Coffee", created_at=now)
-    variant = ProductVariantModel(id="variant-1", store_id="store-1", product_id=product.id, sku="COFFEE", description="Coffee", created_at=now)
+    variant = ProductVariantModel(id="variant-1", store_id="store-1", product_id=product.id, sku="COFFEE", description="Coffee")
     session.add_all([product, variant])
     session.commit()
     repo = SqlAlchemyInventoryRepository(session, store_id="store-1")
