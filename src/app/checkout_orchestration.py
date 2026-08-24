@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-from src.app.contracts import CheckoutRequest, CheckoutResult, CheckoutService
+from src.app.contracts import CheckoutRequest, CheckoutResult, CheckoutServicePort
 from src.app.ports import InventoryPort, PaymentGatewayPort
 from src.domain.payment_stock import Payment, StockReservation
 
@@ -24,7 +24,7 @@ class CheckoutOrchestrator:
 
     def __init__(
         self,
-        checkout: CheckoutService,
+        checkout: CheckoutServicePort,
         inventory: InventoryPort,
         payments: PaymentGatewayPort,
     ) -> None:
