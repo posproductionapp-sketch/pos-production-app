@@ -18,3 +18,13 @@ def test_protected_endpoint_requires_bearer_token():
     client = TestClient(app)
     response = client.get("/v1/me")
     assert response.status_code == 401
+
+
+def test_metrics_endpoint_tracks_requests_without_exposing_payloads():
+    client = TestClient(app)
+    client.get("/health")
+    response = client.get("/metrics")
+    assert response.status_code == 200
+    entries = response.json()["requests"]
+    assert any(entry["method"] == "GET" and entry["path"] == "/health" and entry["status"] == 200 for entry in entries)
+    assert "Authorization" not in response.text
