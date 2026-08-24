@@ -1,10 +1,15 @@
 from decimal import Decimal
 
 from src.app.checkout_orchestration import CheckoutOrchestrator
-from src.app.contracts import CheckoutRequest, CheckoutService
+from src.app.contracts import CheckoutRequest
 from src.domain.contracts import Cart, LineItem, Money
 from src.domain.payment_stock import Payment
-from src.services.deterministic_pricing import PercentageDiscountPolicy, VatRatePolicy
+from src.services.checkout import CheckoutService
+from src.services.deterministic_pricing import (
+    PercentageDiscountPolicy,
+    SubtotalPricingPolicy,
+    VatRatePolicy,
+)
 
 
 class FakeInventory:
@@ -30,7 +35,7 @@ class FakePayments:
 
 def checkout():
     return CheckoutService(
-        pricing=None,
+        pricing=SubtotalPricingPolicy(),
         discount=PercentageDiscountPolicy(Decimal("0.10")),
         vat=VatRatePolicy(Decimal("0.07")),
     )
