@@ -80,7 +80,7 @@ def principal(authorization: str = Header(default=""), session: Session = Depend
     if not authorization.lower().startswith("bearer "):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Bearer token required")
     try:
-        return AuthService(session, _settings.auth_secret).authenticate(authorization[7:].strip())
+        return AuthService(session, load_settings().auth_secret).authenticate(authorization[7:].strip())
     except (AuthenticationError, ValueError) as exc:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid authentication") from exc
 
@@ -99,7 +99,7 @@ def ready(session: Session = Depends(get_session)) -> dict[str, str]:
 @app.post("/v1/auth/login", response_model=LoginResponse)
 def login(request: LoginRequest, session: Session = Depends(get_session)) -> LoginResponse:
     try:
-        token = AuthService(session, _settings.auth_secret).login(tenant_id=request.tenant_id, username=request.username, password=request.password)
+        token = AuthService(session, load_settings().auth_secret).login(tenant_id=request.tenant_id, username=request.username, password=request.password)
         session.commit()
         return LoginResponse(access_token=token)
     except (AuthenticationError, ValueError) as exc:
