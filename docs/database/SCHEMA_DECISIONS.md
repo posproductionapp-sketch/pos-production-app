@@ -2,22 +2,22 @@
 
 ## Decision status
 
-**NOT APPROVED FOR MIGRATIONS**
+**APPROVED FOR MIGRATIONS**
 
-The logical model and schema review are now documented. Physical schema implementation remains blocked until the database technology and the remaining persistence decisions are explicitly approved.
+Approved by project owner on 2026-08-24. Physical database implementation may proceed using the decisions below.
 
-## Required decisions
+## Approved decisions
 
-- Database engine: TBD
-- ORM/query layer: TBD
-- Migration tooling: TBD
-- Isolation level / concurrency strategy: TBD
-- Money and currency representation: exact decimal + explicit currency required
-- Timestamp standard: timezone-aware, normalized storage required
-- Tenant/store isolation: explicit application + database constraints required
-- Audit retention: TBD
-- Reference/seed data policy: TBD
+- Database engine: PostgreSQL
+- ORM/query layer: SQLAlchemy 2.x
+- Migration tooling: Alembic
+- Isolation/concurrency: PostgreSQL READ COMMITTED by default; explicit row locking (`SELECT ... FOR UPDATE`) for stock/order critical sections; transactions owned by application services
+- Money representation: PostgreSQL NUMERIC with explicit ISO currency code; application uses Decimal
+- Timestamp standard: timezone-aware timestamps normalized to UTC
+- Tenant/store isolation: explicit `tenant_id` / `store_id` ownership columns with application checks and database constraints where applicable
+- Audit retention: immutable audit records retained according to production compliance policy; no destructive update of audit history
+- Reference/seed data: versioned deterministic seed set; migrations must be safe to re-run
 
 ## Gate rule
 
-Codex may implement migrations only after these decisions are approved and recorded in this file.
+Codex may implement migrations and persistence adapters using these approved decisions. Any change to these decisions requires updating this document and passing the architecture review gate again.
