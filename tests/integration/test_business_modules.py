@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from decimal import Decimal
 
 import pytest
@@ -15,8 +16,9 @@ from src.infrastructure.database import shift_models  # noqa: F401 - register sh
 def session():
     engine = create_engine("sqlite+pysqlite:///:memory:")
     Base.metadata.create_all(engine)
+    now = datetime.now(timezone.utc)
     with Session(engine) as db:
-        db.add(StoreModel(id="store-1", tenant_id="tenant-1", name="Test"))
+        db.add(StoreModel(id="store-1", tenant_id="tenant-1", name="Test", created_at=now))
         db.commit()
         yield db
 
@@ -34,7 +36,8 @@ def test_inventory_rejects_negative_stock_and_records_movements(session):
 
 
 def test_payment_and_refund_are_exact_and_capped(session):
-    session.add(OrderModel(id="order-1", store_id="store-1", state="paid", total_amount=Decimal("100.00"), currency="THB"))
+    now = datetime.now(timezone.utc)
+    session.add(OrderModel(id="order-1", store_id="store-1", state="paid", total_amount=Decimal("100.00"), currency="THB", created_at=now, updated_at=now))
     session.commit()
     payment = SqlAlchemyPaymentRepository(session).record(order_id="order-1", provider="cash", provider_reference="pay-1", amount=Decimal("100.00"), currency="THB", state="captured")
     refund_repo = SqlAlchemyRefundRepository(session)
