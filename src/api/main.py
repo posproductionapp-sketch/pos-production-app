@@ -5,15 +5,20 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from src.config.settings import load_settings
-from src.domain.auth import Role
 from src.infrastructure.database.auth import AuthService, AuthenticationError
-from src.infrastructure.database.session import SessionLocal
+from src.infrastructure.database.session import create_engine_from_env, session_factory
 
 app = FastAPI(title="POS Production API", version="0.2.0")
+_engine = None
+_SessionLocal = None
 
 
 def get_session():
-    with SessionLocal() as session:
+    global _engine, _SessionLocal
+    if _SessionLocal is None:
+        _engine = create_engine_from_env()
+        _SessionLocal = session_factory(_engine)
+    with _SessionLocal() as session:
         yield session
 
 
