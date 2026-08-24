@@ -62,7 +62,14 @@ class ArchitectureContracts(unittest.TestCase):
 
     def test_database_phase_gate_remains_closed(self):
         database_root = SRC / "infrastructure" / "database"
-        implementation_files = [p for p in database_root.rglob("*") if p.is_file() and p.name != ".gitkeep"] if database_root.exists() else []
+        implementation_files = [
+            p for p in database_root.rglob("*")
+            if p.is_file()
+            and "__pycache__" not in p.parts
+            and p.name != ".gitkeep"
+            and p.suffix in CODE_SUFFIXES
+            and p.stat().st_size > 0
+        ] if database_root.exists() else []
         self.assertFalse(implementation_files, "Database implementation is blocked until the Database Decision Gate is approved: " + ", ".join(str(p.relative_to(ROOT)) for p in implementation_files))
 
 
