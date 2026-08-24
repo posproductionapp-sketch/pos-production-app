@@ -4,10 +4,11 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from src.infrastructure.database.models import Base, StoreModel, ProductModel, ProductVariantModel
+from src.infrastructure.database.models import Base, StoreModel, ProductModel, ProductVariantModel, OrderModel
 from src.infrastructure.database.inventory import InventoryInsufficientStock, SqlAlchemyInventoryRepository
 from src.infrastructure.database.payment import RefundExceedsPayment, SqlAlchemyPaymentRepository, SqlAlchemyRefundRepository
 from src.infrastructure.database.shifts import ShiftRepository
+from src.infrastructure.database import shift_models  # noqa: F401 - register shift tables with Base.metadata
 
 
 @pytest.fixture()
@@ -33,9 +34,6 @@ def test_inventory_rejects_negative_stock_and_records_movements(session):
 
 
 def test_payment_and_refund_are_exact_and_capped(session):
-    product = ProductModel(id="product-1", store_id="store-1", name="Coffee")
-    session.add(product)
-    from src.infrastructure.database.models import OrderModel
     session.add(OrderModel(id="order-1", store_id="store-1", state="paid", total_amount=Decimal("100.00"), currency="THB"))
     session.commit()
     payment = SqlAlchemyPaymentRepository(session).record(order_id="order-1", provider="cash", provider_reference="pay-1", amount=Decimal("100.00"), currency="THB", state="captured")
