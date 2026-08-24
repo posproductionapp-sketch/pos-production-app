@@ -16,6 +16,8 @@ from src.infrastructure.database.models import (
     ProductVariantModel,
     RefundModel,
     StoreModel,
+    SyncCommandModel,
+    UserModel,
 )
 
 
@@ -23,7 +25,7 @@ def test_all_approved_tables_are_mapped() -> None:
     expected = {
         "stores", "products", "product_variants", "prices", "orders",
         "order_items", "inventory_balances", "inventory_movements", "payments",
-        "refunds", "audit_logs", "idempotency_keys",
+        "refunds", "audit_logs", "idempotency_keys", "users", "sync_commands",
     }
     assert set(Base.metadata.tables) == expected
 
@@ -40,3 +42,8 @@ def test_inventory_and_idempotency_constraints_are_present() -> None:
     idem = inspect(IdempotencyKeyModel).local_table
     assert any(c.name == "uq_inventory_store_variant" for c in inventory.constraints)
     assert any(c.name == "uq_idempotency_scope" for c in idem.constraints)
+
+
+def test_auth_and_sync_constraints_are_present() -> None:
+    assert any(c.name == "uq_user_tenant_username" for c in inspect(UserModel).local_table.constraints)
+    assert any(c.name == "uq_sync_command_scope" for c in inspect(SyncCommandModel).local_table.constraints)
