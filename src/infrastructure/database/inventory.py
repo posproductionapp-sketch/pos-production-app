@@ -1,5 +1,6 @@
 """Concurrency-safe inventory persistence adapter."""
 
+from datetime import datetime, timezone
 from decimal import Decimal
 from uuid import uuid4
 
@@ -21,6 +22,9 @@ class SqlAlchemyInventoryRepository:
         self.store_id = store_id
 
     def adjust(self, *, variant_id: str, delta: Decimal, reason: str, correlation_id: str) -> Decimal:
+        if delta == 0:
+            raise ValueError("Inventory delta cannot be zero")
+        now = datetime.now(timezone.utc)
         row = self.session.scalar(
             select(InventoryBalanceModel)
             .where(InventoryBalanceModel.store_id == self.store_id, InventoryBalanceModel.variant_id == variant_id)
@@ -29,13 +33,14 @@ class SqlAlchemyInventoryRepository:
         if row is None:
             if delta < 0:
                 raise InventoryInsufficientStock("No inventory balance exists")
-            row = InventoryBalanceModel(id=str(uuid4()), store_id=self.store_id, variant_id=variant_id, quantity=Decimal("0"))
+            row = InventoryBalanceModel(id=str(uuid4()), store_id=self.store_id, variant_id=variant_id, quantity=Decimal("0"), updated_at=now)
             self.session.add(row)
             self.session.flush()
         new_quantity = row.quantity + delta
         if new_quantity < 0:
             raise InventoryInsufficientStock("Inventory cannot become negative")
         row.quantity = new_quantity
-        self.session.add(InventoryMovementModel(id=str(uuid4()), store_id=self.store_id, variant_id=variant_id, quantity_delta=delta, reason=reason, correlation_id=correlation_id))
+        row.updated_at = now
+        self.session.add(InventoryMovementModel(id=str(uuid4()), store_id=self.store_id, variant_id=variant_id, quantity_delta=delta, reason=reason, correlation_id=correlation_id, created_at=now))
         self.session.flush()
         return new_quantity

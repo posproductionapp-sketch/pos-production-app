@@ -19,6 +19,7 @@ from src.infrastructure.database.models import (
     SyncCommandModel,
     UserModel,
 )
+from src.infrastructure.database import shift_models  # noqa: F401 - register shift mappings
 
 
 def test_all_approved_tables_are_mapped() -> None:
@@ -26,6 +27,7 @@ def test_all_approved_tables_are_mapped() -> None:
         "stores", "products", "product_variants", "prices", "orders",
         "order_items", "inventory_balances", "inventory_movements", "payments",
         "refunds", "audit_logs", "idempotency_keys", "users", "sync_commands",
+        "shifts", "cash_movements",
     }
     assert set(Base.metadata.tables) == expected
 
@@ -44,6 +46,7 @@ def test_inventory_and_idempotency_constraints_are_present() -> None:
     assert any(c.name == "uq_idempotency_scope" for c in idem.constraints)
 
 
-def test_auth_and_sync_constraints_are_present() -> None:
+def test_auth_sync_and_shift_constraints_are_present() -> None:
     assert any(c.name == "uq_user_tenant_username" for c in inspect(UserModel).local_table.constraints)
     assert any(c.name == "uq_sync_command_scope" for c in inspect(SyncCommandModel).local_table.constraints)
+    assert any(c.name == "uq_shift_store_state" for c in inspect(shift_models.ShiftModel).local_table.constraints)

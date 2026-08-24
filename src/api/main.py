@@ -12,8 +12,9 @@ from src.domain.auth import Role
 from src.infrastructure.database.auth import AuthService, AuthenticationError
 from src.infrastructure.database.session import create_engine_from_env, session_factory
 from src.infrastructure.database.sync import SqlAlchemySyncRepository
+from src.api.pos import build_pos_router
 
-app = FastAPI(title="POS Production API", version="0.2.0")
+app = FastAPI(title="POS Production API", version="0.3.0")
 _engine = None
 _SessionLocal = None
 
@@ -26,6 +27,7 @@ async def production_headers(request: Request, call_next):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Cache-Control"] = "no-store" if request.url.path.startswith("/v1/") else "no-cache"
     return response
 
 
@@ -105,3 +107,6 @@ def sync_command(request: SyncRequest, current=Depends(principal), session: Sess
     command = repository.record_received(command_id=request.command_id, operation=request.operation, payload=request.payload)
     session.commit()
     return {"command_id": command.command_id, "state": command.state, "duplicate": command.result_json is not None}
+
+
+app.include_router(build_pos_router(principal, get_session))
