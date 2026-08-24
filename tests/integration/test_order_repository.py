@@ -5,6 +5,7 @@ from decimal import Decimal
 
 import pytest
 from sqlalchemy import create_engine, text
+from sqlalchemy.orm import Session
 
 from src.domain.contracts import Money
 from src.domain.order import Order, OrderState
@@ -38,20 +39,15 @@ def test_order_repository_round_trip_and_store_isolation(database_engine):
             ],
         )
 
-    with database_engine.begin() as transaction:
-        session = __import__("sqlalchemy.orm", fromlist=["Session"]).Session(bind=transaction)
+    order = Order("order-1", Money(Decimal("125.50")), OrderState.PENDING)
+    with Session(database_engine) as session, session.begin():
         repository = SqlAlchemyOrderRepository(session, store_id="store-a")
-        order = Order("order-1", Money(Decimal("125.50")), OrderState.PENDING)
         repository.save(order)
-        session.commit()
 
-    with database_engine.begin() as transaction:
-        session = __import__("sqlalchemy.orm", fromlist=["Session"]).Session(bind=transaction)
+    with Session(database_engine) as session:
         repository = SqlAlchemyOrderRepository(session, store_id="store-a")
-        loaded = repository.get("order-1")
-        assert loaded == order
+        assert repository.get("order-1") == order
 
-    with database_engine.begin() as transaction:
-        session = __import__("sqlalchemy.orm", fromlist=["Session"]).Session(bind=transaction)
+    with Session(database_engine) as session:
         other_store = SqlAlchemyOrderRepository(session, store_id="store-b")
         assert other_store.get("order-1") is None
