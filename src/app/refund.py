@@ -2,7 +2,7 @@
 
 from typing import Protocol
 
-from src.domain.order import Order, Refund
+from src.domain.order import Order, OrderState, Refund
 
 
 class RefundGatewayPort(Protocol):
@@ -21,8 +21,8 @@ class RefundService:
             raise ValueError("Refund currency must match order currency")
         if refund.amount.amount > order.total.amount:
             raise ValueError("Refund cannot exceed order total")
-        if order.state not in {order.state.PAID, order.state.COMPLETED}:
+        if order.state not in {OrderState.PAID, OrderState.COMPLETED}:
             raise ValueError("Only paid or completed orders can be refunded")
         if not self._gateway.refund(refund):
             raise RuntimeError("Refund gateway rejected refund")
-        return order.transition(order.state.REFUND_PENDING).transition(order.state.REFUNDED)
+        return order.transition(OrderState.REFUND_PENDING).transition(OrderState.REFUNDED)
