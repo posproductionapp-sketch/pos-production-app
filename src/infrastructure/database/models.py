@@ -7,7 +7,7 @@ infrastructure-agnostic.
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import DateTime, ForeignKey, Numeric, String, Text, UniqueConstraint, text
+from sqlalchemy import DateTime, ForeignKey, Index, Numeric, String, Text, UniqueConstraint, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -55,6 +55,7 @@ class PriceModel(Base):
 
 class OrderModel(Base):
     __tablename__ = "orders"
+    __table_args__ = (Index("ix_orders_store_created", "store_id", "created_at"),)
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     store_id: Mapped[str] = mapped_column(ForeignKey("stores.id"), nullable=False, index=True)
     state: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
@@ -89,6 +90,7 @@ class InventoryBalanceModel(Base):
 
 class InventoryMovementModel(Base):
     __tablename__ = "inventory_movements"
+    __table_args__ = (Index("ix_inventory_movements_store_created", "store_id", "created_at"),)
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     store_id: Mapped[str] = mapped_column(ForeignKey("stores.id"), nullable=False)
     variant_id: Mapped[str] = mapped_column(ForeignKey("product_variants.id"), nullable=False)
@@ -124,6 +126,7 @@ class RefundModel(Base):
 
 class AuditLogModel(Base):
     __tablename__ = "audit_logs"
+    __table_args__ = (Index("ix_audit_store_created", "store_id", "created_at"),)
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     tenant_id: Mapped[str] = mapped_column(String(36), nullable=False)
     store_id: Mapped[str] = mapped_column(String(36), nullable=False)
