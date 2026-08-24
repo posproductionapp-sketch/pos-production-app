@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from src.api.main import app, get_session
 from src.infrastructure.database.auth import AuthService
@@ -12,7 +13,7 @@ from src.domain.auth import Role
 
 
 def test_login_and_protected_me_flow():
-    engine = create_engine("sqlite+pysqlite:///:memory:")
+    engine = create_engine("sqlite+pysqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
 
     @event.listens_for(engine, "connect")
     def register_now(dbapi_connection, _):
