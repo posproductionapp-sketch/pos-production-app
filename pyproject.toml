@@ -7,6 +7,11 @@ name = "pos-production-app"
 version = "0.1.0"
 description = "Production POS system core"
 requires-python = ">=3.12"
+dependencies = [
+  "SQLAlchemy>=2.0,<3",
+  "alembic>=1.13,<2",
+  "psycopg[binary]>=3.2,<4",
+]
 
 [project.optional-dependencies]
 test = ["pytest>=8,<9"]
