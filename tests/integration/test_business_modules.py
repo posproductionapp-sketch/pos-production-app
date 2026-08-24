@@ -24,15 +24,16 @@ def session():
 
 
 def test_inventory_rejects_negative_stock_and_records_movements(session):
-    product = ProductModel(id="product-1", store_id="store-1", name="Coffee")
-    variant = ProductVariantModel(id="variant-1", store_id="store-1", product_id=product.id, sku="COFFEE", description="Coffee")
+    now = datetime.now(timezone.utc)
+    product = ProductModel(id="product-1", store_id="store-1", name="Coffee", created_at=now)
+    variant = ProductVariantModel(id="variant-1", store_id="store-1", product_id=product.id, sku="COFFEE", description="Coffee", created_at=now)
     session.add_all([product, variant])
     session.commit()
     repo = SqlAlchemyInventoryRepository(session, store_id="store-1")
     assert repo.adjust(variant_id=variant.id, delta=Decimal("10"), reason="stock_receipt", correlation_id="c1") == Decimal("10")
-    assert repo.adjust(variant_id=variant.id, delta=Decimal("3"), reason="sale", correlation_id="c2") == Decimal("7")
+    assert repo.adjust(variant_id=variant.id, delta=Decimal("3"), reason="sale", correlation_id="c2") == Decimal("13")
     with pytest.raises(InventoryInsufficientStock):
-        repo.adjust(variant_id=variant.id, delta=Decimal("-8"), reason="sale", correlation_id="c3")
+        repo.adjust(variant_id=variant.id, delta=Decimal("-14"), reason="sale", correlation_id="c3")
 
 
 def test_payment_and_refund_are_exact_and_capped(session):
