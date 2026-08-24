@@ -23,8 +23,6 @@ class Settings:
                 raise RuntimeError("AUTH_SECRET must be at least 32 characters")
             if not self.database_url.startswith(("postgresql://", "postgresql+psycopg://")):
                 raise RuntimeError("Production DATABASE_URL must use PostgreSQL")
-        elif self.database_url and len(self.auth_secret) < 32:
-            raise RuntimeError("AUTH_SECRET must be at least 32 characters when configured")
 
 
 def load_settings() -> Settings:
