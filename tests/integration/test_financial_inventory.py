@@ -2,7 +2,7 @@ import os
 from decimal import Decimal
 
 import pytest
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from src.infrastructure.database.models import Base, StoreModel, ProductModel, ProductVariantModel, OrderModel
@@ -20,9 +20,7 @@ def engine():
     try:
         yield value
     finally:
-        with value.begin() as connection:
-            for table in reversed(Base.metadata.sorted_tables):
-                connection.execute(text(f'DELETE FROM "{table.name}"'))
+        Base.metadata.drop_all(value)
         value.dispose()
 
 
