@@ -5,7 +5,7 @@ import pytest
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
 
-from src.infrastructure.database.models import Base, StoreModel, ProductModel, ProductVariantModel
+from src.infrastructure.database.models import Base, StoreModel, ProductModel, ProductVariantModel, OrderModel
 from src.infrastructure.database.inventory import InventoryInsufficientStock, SqlAlchemyInventoryRepository
 from src.infrastructure.database.payment import RefundExceedsPayment, SqlAlchemyPaymentRepository, SqlAlchemyRefundRepository
 
@@ -26,11 +26,18 @@ def engine():
         value.dispose()
 
 
+def seed_catalog(session: Session) -> None:
+    session.add(StoreModel(id="s", tenant_id="t", name="Store"))
+    session.flush()
+    session.add(ProductModel(id="p", store_id="s", name="Product"))
+    session.flush()
+    session.add(ProductVariantModel(id="v", store_id="s", product_id="p", sku="SKU"))
+    session.flush()
+
+
 def test_inventory_never_goes_negative(engine):
     with Session(engine) as session, session.begin():
-        session.add(StoreModel(id="s", tenant_id="t", name="Store"))
-        session.add(ProductModel(id="p", store_id="s", name="Product"))
-        session.add(ProductVariantModel(id="v", store_id="s", product_id="p", sku="SKU"))
+        seed_catalog(session)
     with Session(engine) as session, session.begin():
         repository = SqlAlchemyInventoryRepository(session, store_id="s")
         assert repository.adjust(variant_id="v", delta=Decimal("5"), reason="receipt", correlation_id="c1") == Decimal("5")
@@ -40,10 +47,7 @@ def test_inventory_never_goes_negative(engine):
 
 def test_refund_cannot_exceed_payment(engine):
     with Session(engine) as session, session.begin():
-        session.add(StoreModel(id="s", tenant_id="t", name="Store"))
-        session.add(ProductModel(id="p", store_id="s", name="Product"))
-        session.add(ProductVariantModel(id="v", store_id="s", product_id="p", sku="SKU"))
-        from src.infrastructure.database.models import OrderModel
+        seed_catalog(session)
         session.add(OrderModel(id="o", store_id="s", state="pending", total_amount=Decimal("100"), currency="THB"))
     with Session(engine) as session, session.begin():
         payment = SqlAlchemyPaymentRepository(session).record(order_id="o", provider="test", provider_reference="pay-1", amount=Decimal("100"), currency="THB", state="captured")
