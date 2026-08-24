@@ -46,3 +46,47 @@ def test_quote_rejects_discount_that_exceeds_subtotal():
 
     with pytest.raises(ValueError, match="Discount cannot exceed subtotal"):
         checkout.quote(CheckoutRequest(cart()))
+
+
+def test_quote_rejects_discount_currency_mismatch():
+    class ForeignDiscount:
+        def calculate(self, _cart):
+            return Money(Decimal("10"), "USD")
+
+    checkout = CheckoutService(
+        pricing=SubtotalPricingPolicy(),
+        discount=ForeignDiscount(),
+        vat=VatRatePolicy(Decimal("0.07")),
+    )
+
+    with pytest.raises(ValueError, match="Discount currency"):
+        checkout.quote(CheckoutRequest(cart()))
+
+
+def test_quote_rejects_vat_currency_mismatch():
+    class ForeignVat:
+        def calculate(self, _subtotal):
+            return Money(Decimal("7"), "USD")
+
+    checkout = CheckoutService(
+        pricing=SubtotalPricingPolicy(),
+        discount=PercentageDiscountPolicy(Decimal("0.10")),
+        vat=ForeignVat(),
+    )
+
+    with pytest.raises(ValueError, match="VAT currency"):
+        checkout.quote(CheckoutRequest(cart()))
+
+
+def test_quote_accepts_zero_discount_and_zero_vat():
+    checkout = CheckoutService(
+        pricing=SubtotalPricingPolicy(),
+        discount=PercentageDiscountPolicy(Decimal("0")),
+        vat=VatRatePolicy(Decimal("0")),
+    )
+
+    result = checkout.quote(CheckoutRequest(cart()))
+
+    assert result.discount == Money(Decimal("0"))
+    assert result.vat == Money(Decimal("0"))
+    assert result.total == result.subtotal == Money(Decimal("100"))
