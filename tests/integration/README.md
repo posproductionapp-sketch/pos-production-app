@@ -1,0 +1,1 @@
+Persistence integration tests cover repository round trips and transaction boundaries. CI supplies PostgreSQL for the production database path; the repository contract remains backend-neutral for fast local tests.
