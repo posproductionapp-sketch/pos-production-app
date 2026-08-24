@@ -14,7 +14,15 @@ from src.infrastructure.database.session import create_engine_from_env, session_
 from src.infrastructure.database.sync import SqlAlchemySyncRepository
 from src.api.pos import build_pos_router
 
-app = FastAPI(title="POS Production API", version="0.3.0")
+_settings = load_settings()
+_docs_enabled = _settings.environment != "production"
+app = FastAPI(
+    title="POS Production API",
+    version="0.3.0",
+    docs_url="/docs" if _docs_enabled else None,
+    redoc_url="/redoc" if _docs_enabled else None,
+    openapi_url="/openapi.json" if _docs_enabled else None,
+)
 _engine = None
 _SessionLocal = None
 
@@ -27,12 +35,16 @@ async def production_headers(request: Request, call_next):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
     response.headers["Cache-Control"] = "no-store" if request.url.path.startswith("/v1/") else "no-cache"
+    if request.url.scheme == "https" or _settings.environment == "production":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     return response
 
 
 def get_session():
     global _engine, _SessionLocal
+    _settings.validate_runtime()
     if _SessionLocal is None:
         _engine = create_engine_from_env()
         _SessionLocal = session_factory(_engine)
@@ -68,7 +80,7 @@ def principal(authorization: str = Header(default=""), session: Session = Depend
     if not authorization.lower().startswith("bearer "):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Bearer token required")
     try:
-        return AuthService(session, load_settings().auth_secret).authenticate(authorization[7:].strip())
+        return AuthService(session, _settings.auth_secret).authenticate(authorization[7:].strip())
     except (AuthenticationError, ValueError) as exc:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid authentication") from exc
 
@@ -87,7 +99,7 @@ def ready(session: Session = Depends(get_session)) -> dict[str, str]:
 @app.post("/v1/auth/login", response_model=LoginResponse)
 def login(request: LoginRequest, session: Session = Depends(get_session)) -> LoginResponse:
     try:
-        token = AuthService(session, load_settings().auth_secret).login(tenant_id=request.tenant_id, username=request.username, password=request.password)
+        token = AuthService(session, _settings.auth_secret).login(tenant_id=request.tenant_id, username=request.username, password=request.password)
         session.commit()
         return LoginResponse(access_token=token)
     except (AuthenticationError, ValueError) as exc:
