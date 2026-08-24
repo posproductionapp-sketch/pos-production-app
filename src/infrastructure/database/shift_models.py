@@ -3,7 +3,7 @@
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import DateTime, ForeignKey, Index, Numeric, String
+from sqlalchemy import DateTime, ForeignKey, Index, Numeric, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.infrastructure.database.models import Base
@@ -11,7 +11,10 @@ from src.infrastructure.database.models import Base
 
 class ShiftModel(Base):
     __tablename__ = "shifts"
-    __table_args__ = (Index("ix_shifts_store_opened", "store_id", "opened_at"),)
+    __table_args__ = (
+        UniqueConstraint("store_id", "state", name="uq_shift_store_state"),
+        Index("ix_shifts_store_opened", "store_id", "opened_at"),
+    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     tenant_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
