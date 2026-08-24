@@ -1,5 +1,6 @@
 """Payment/refund persistence adapters with financial invariants."""
 
+from datetime import datetime, timezone
 from decimal import Decimal
 from uuid import uuid4
 
@@ -34,7 +35,7 @@ class SqlAlchemyPaymentRepository:
             if existing.order_id != order_id or existing.amount != amount or existing.currency != currency:
                 raise PaymentConflict("Provider reference is already bound to a different payment")
             return existing
-        payment = PaymentModel(id=str(uuid4()), order_id=order_id, provider=provider, provider_reference=provider_reference, amount=amount, currency=currency, state=state)
+        payment = PaymentModel(id=str(uuid4()), order_id=order_id, provider=provider, provider_reference=provider_reference, amount=amount, currency=currency, state=state, created_at=datetime.now(timezone.utc))
         self.session.add(payment)
         self.session.flush()
         return payment
@@ -60,7 +61,7 @@ class SqlAlchemyRefundRepository:
         refunded = self.session.scalar(select(func.coalesce(func.sum(RefundModel.amount), 0)).where(RefundModel.payment_id == payment_id)) or Decimal("0")
         if refunded + amount > payment.amount:
             raise RefundExceedsPayment("Cumulative refunds cannot exceed payment amount")
-        refund = RefundModel(id=str(uuid4()), payment_id=payment_id, amount=amount, currency=currency, state=state, provider_reference=provider_reference)
+        refund = RefundModel(id=str(uuid4()), payment_id=payment_id, amount=amount, currency=currency, state=state, provider_reference=provider_reference, created_at=datetime.now(timezone.utc))
         self.session.add(refund)
         self.session.flush()
         return refund
