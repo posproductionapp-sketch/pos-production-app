@@ -4,7 +4,7 @@ import os
 from decimal import Decimal
 
 import pytest
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from src.domain.contracts import Money
@@ -23,9 +23,7 @@ def database_engine():
     try:
         yield engine
     finally:
-        with engine.begin() as connection:
-            for table in reversed(Base.metadata.sorted_tables):
-                connection.execute(text(f'DELETE FROM "{table.name}"'))
+        Base.metadata.drop_all(engine)
         engine.dispose()
 
 
