@@ -34,13 +34,15 @@ class SqlAlchemyIdempotencyRepository:
             tenant_id=self.tenant_id, store_id=self.store_id,
             operation=operation, key=key, result_reference=result_reference,
         )
-        self.session.add(record)
         try:
-            self.session.flush()
+            with self.session.begin_nested():
+                self.session.add(record)
+                self.session.flush()
         except IntegrityError:
-            self.session.rollback()
             existing = self.get(operation, key)
             if existing is None:
                 raise
+            if existing.result_reference != result_reference:
+                raise IdempotencyConflict("Idempotency key is already bound to another result")
             return existing
         return record
