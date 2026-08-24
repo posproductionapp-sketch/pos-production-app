@@ -1,6 +1,8 @@
 # Database Schema Review — Specification V2
 
-Status: **Review baseline — no migrations yet**
+Status: **APPROVED — migration implementation authorized**
+
+Decision record: `SCHEMA_DECISIONS.md`.
 
 ## 1. Tenant / store boundary
 
@@ -70,34 +72,18 @@ Uniqueness is scoped by tenant/store + operation + key. A successful request sto
 
 ## 9. Key constraints and indexes
 
-Minimum review set before migrations:
-
 - PK on every entity.
 - FK for every required aggregate relationship.
 - Unique constraints for SKU/business identifiers, provider references, and scoped idempotency keys.
 - Composite indexes beginning with store/tenant scope for high-volume operational queries.
 - Timestamp indexes for audit, movements, orders, and payments where query patterns require them.
-- Check/enum constraints for currency, positive monetary quantities, and lifecycle states where supported by the selected database.
-- Explicit `created_at` / `updated_at` policy; finalized financial records must not silently mutate historical values.
+- Check/enum constraints for currency, positive monetary quantities, and lifecycle states.
+- UTC timezone-aware timestamps with explicit created/updated policy.
 
 ## 10. Transaction boundaries
 
-Transactions are owned by application use cases. At minimum:
-
-- finalize sale + inventory movement + payment state transition must be coordinated according to payment workflow;
-- inventory movement + balance update is atomic;
-- refund + refundable-amount update is atomic;
-- idempotency record creation and successful result persistence are coordinated to prevent duplicate execution.
+Transactions are owned by application use cases. Inventory movement + balance update, refund + refundable amount update, and idempotency + successful result persistence are atomic. Stock/order critical sections use explicit row locks where required.
 
 ## 11. Migration gate
 
-Do not create production migrations until the team approves:
-
-1. database engine/ORM choice;
-2. exact column types and nullability;
-3. cardinalities and cascade/restrict behavior;
-4. unique and composite indexes;
-5. concurrency strategy;
-6. retention and audit policy;
-7. tenant/store isolation strategy;
-8. seed/reference-data strategy.
+**Approved.** PostgreSQL + SQLAlchemy 2.x + Alembic is authorized by `SCHEMA_DECISIONS.md` for production migration implementation.
