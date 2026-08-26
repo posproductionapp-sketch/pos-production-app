@@ -22,6 +22,14 @@ from src.infrastructure.database.models import (
 from src.infrastructure.database.shift_models import CashMovementModel, ShiftModel
 
 
+def money(value: Decimal | int | None) -> str:
+    return f"{Decimal(value or 0):.2f}"
+
+
+def quantity(value: Decimal | int | None) -> str:
+    return f"{Decimal(value or 0):.3f}"
+
+
 class ReportRepository:
     def __init__(self, session: Session, *, store_id: str) -> None:
         self.session = session
@@ -71,11 +79,11 @@ class ReportRepository:
             "start": start.isoformat(),
             "end": end.isoformat(),
             "order_count": int(order_count),
-            "item_quantity": str(item_count),
-            "gross_sales": str(gross),
-            "refunds": str(refunds),
-            "net_sales": str(gross - refunds),
-            "payments_by_provider": {provider: str(amount) for provider, amount in payment_rows},
+            "item_quantity": quantity(item_count),
+            "gross_sales": money(gross),
+            "refunds": money(refunds),
+            "net_sales": money(gross - refunds),
+            "payments_by_provider": {provider: money(amount) for provider, amount in payment_rows},
         }
 
     def inventory(self, *, start: datetime, end: datetime) -> dict[str, object]:
@@ -109,12 +117,12 @@ class ReportRepository:
             "start": start.isoformat(),
             "end": end.isoformat(),
             "balances": [
-                {"sku": sku, "description": description, "quantity": str(quantity)}
-                for sku, description, quantity in balances
+                {"sku": sku, "description": description, "quantity": quantity(balance)}
+                for sku, description, balance in balances
             ],
             "movements": [
-                {"sku": sku, "reason": reason, "quantity_delta": str(quantity)}
-                for sku, reason, quantity in movements
+                {"sku": sku, "reason": reason, "quantity_delta": quantity(delta)}
+                for sku, reason, delta in movements
             ],
         }
 
@@ -144,11 +152,11 @@ class ReportRepository:
                     "state": shift.state,
                     "opened_at": shift.opened_at.isoformat(),
                     "closed_at": shift.closed_at.isoformat() if shift.closed_at else None,
-                    "opening_cash": str(shift.opening_cash),
-                    "closing_cash": str(shift.closing_cash) if shift.closing_cash is not None else None,
-                    "expected_cash": str(expected),
-                    "variance": str(shift.closing_cash - expected) if shift.closing_cash is not None else None,
-                    "movements": {key: str(value) for key, value in totals.items()},
+                    "opening_cash": money(shift.opening_cash),
+                    "closing_cash": money(shift.closing_cash) if shift.closing_cash is not None else None,
+                    "expected_cash": money(expected),
+                    "variance": money(shift.closing_cash - expected) if shift.closing_cash is not None else None,
+                    "movements": {key: money(value) for key, value in totals.items()},
                 }
             )
         return results
