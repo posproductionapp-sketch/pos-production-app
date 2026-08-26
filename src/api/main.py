@@ -7,6 +7,8 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response, 
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 from sqlalchemy.orm import Session
+from starlette.middleware.body_limit import RequestBodyLimitMiddleware
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from src.api.pos import build_pos_router
 from src.api.reports import build_reports_router
@@ -18,6 +20,8 @@ from src.infrastructure.database.sync import SqlAlchemySyncRepository
 from src.observability import metrics
 
 _settings = load_settings()
+if _settings.environment == "production":
+    _settings.validate_runtime()
 _docs_enabled = _settings.environment != "production"
 app = FastAPI(
     title="POS Production API",
@@ -26,6 +30,9 @@ app = FastAPI(
     redoc_url="/redoc" if _docs_enabled else None,
     openapi_url="/openapi.json" if _docs_enabled else None,
 )
+app.add_middleware(RequestBodyLimitMiddleware, max_body_size=_settings.max_request_body_bytes)
+if _settings.environment == "production":
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=list(_settings.allowed_hosts), www_redirect=False)
 _engine = None
 _SessionLocal = None
 
