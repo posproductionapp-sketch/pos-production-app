@@ -18,3 +18,20 @@ class PaymentAdapter(Protocol):
 class InventoryAdapter(Protocol):
     def reserve(self, reservation: StockReservation) -> bool: ...
     def release(self, reservation: StockReservation) -> bool: ...
+
+
+class HardwareAdapter(Protocol):
+    """Local hardware-agent boundary; vendor SDKs stay behind the agent."""
+
+    def print_receipt(
+        self,
+        *,
+        command_id: str,
+        store_id: str,
+        receipt_id: str,
+        content: str,
+    ) -> bool: ...
+
+    def open_cash_drawer(self, *, command_id: str, store_id: str) -> bool: ...
+
+    def health(self) -> dict[str, object]: ...
