@@ -8,12 +8,13 @@ from pydantic import BaseModel, Field
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from src.api.pos import build_pos_router
+from src.api.reports import build_reports_router
 from src.config.settings import load_settings
 from src.domain.auth import Role
 from src.infrastructure.database.auth import AuthService, AuthenticationError
 from src.infrastructure.database.session import create_engine_from_env, session_factory
 from src.infrastructure.database.sync import SqlAlchemySyncRepository
-from src.api.pos import build_pos_router
 from src.observability import metrics
 
 _settings = load_settings()
@@ -137,3 +138,4 @@ def sync_command(request: SyncRequest, current=Depends(principal), session: Sess
 
 
 app.include_router(build_pos_router(principal, get_session))
+app.include_router(build_reports_router(principal, get_session))
