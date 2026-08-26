@@ -42,6 +42,7 @@ jobs:
       REDIS_URL: redis://localhost:6379/0
       AUTH_SECRET: certification-only-secret-that-is-at-least-32-characters
       APP_ENV: production
+      ALLOWED_HOSTS: localhost,127.0.0.1
     steps:
       - name: Checkout exact release commit
         uses: actions/checkout@v4
@@ -62,6 +63,8 @@ jobs:
         run: python -m compileall -q src tests
 
       - name: Full Python test suite
+        env:
+          APP_ENV: development
         run: pytest -q
 
       - name: Redis runtime certification
@@ -79,7 +82,7 @@ jobs:
       - name: PostgreSQL backup and restore certification
         run: |
           pg_dump "$LIBPQ_DATABASE_URL" --format=custom --file=/tmp/pos-certification.dump
-          createdb "$LIBPQ_DATABASE_URL" pos_restore_test
+          createdb postgresql://pos:pos@localhost:5432/postgres pos_restore_test
           pg_restore --no-owner --dbname=postgresql://pos:pos@localhost:5432/pos_restore_test /tmp/pos-certification.dump
           psql postgresql://pos:pos@localhost:5432/pos_restore_test -c "SELECT 1 FROM alembic_version LIMIT 1"
 
@@ -119,6 +122,9 @@ jobs:
 
       - name: Stop disposable production stack
         if: always()
+        env:
+          POSTGRES_PASSWORD: certification-db-password
+          AUTH_SECRET: certification-only-secret-that-is-at-least-32-characters
         run: docker compose -f compose.production.yml down -v
 
   hardware:
