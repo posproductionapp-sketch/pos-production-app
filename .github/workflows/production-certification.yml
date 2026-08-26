@@ -82,9 +82,9 @@ jobs:
       - name: PostgreSQL backup and restore certification
         run: |
           pg_dump "$LIBPQ_DATABASE_URL" --format=custom --file=/tmp/pos-certification.dump
-          createdb postgresql://pos:pos@localhost:5432/postgres pos_restore_test
+          psql postgresql://pos:pos@localhost:5432/postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE pos_restore_test"
           pg_restore --no-owner --dbname=postgresql://pos:pos@localhost:5432/pos_restore_test /tmp/pos-certification.dump
-          psql postgresql://pos:pos@localhost:5432/pos_restore_test -c "SELECT 1 FROM alembic_version LIMIT 1"
+          psql postgresql://pos:pos@localhost:5432/pos_restore_test -v ON_ERROR_STOP=1 -c "SELECT 1 FROM alembic_version LIMIT 1"
 
       - name: Validate production Compose configuration
         env:
