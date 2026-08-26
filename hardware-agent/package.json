@@ -1,0 +1,17 @@
+{
+  "name": "pos-hardware-agent",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local Electron hardware agent boundary for POS printers and cash drawers",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test test/*.test.js"
+  },
+  "engines": {
+    "node": ">=24.18.1"
+  },
+  "devDependencies": {
+    "electron": "44.0.0"
+  }
+}
