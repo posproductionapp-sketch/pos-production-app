@@ -38,6 +38,7 @@ jobs:
           --health-retries 5
     env:
       DATABASE_URL: postgresql+psycopg://pos:pos@localhost:5432/pos_test
+      LIBPQ_DATABASE_URL: postgresql://pos:pos@localhost:5432/pos_test
       REDIS_URL: redis://localhost:6379/0
       AUTH_SECRET: certification-only-secret-that-is-at-least-32-characters
       APP_ENV: production
@@ -77,14 +78,15 @@ jobs:
 
       - name: PostgreSQL backup and restore certification
         run: |
-          pg_dump "$DATABASE_URL" --format=custom --file=/tmp/pos-certification.dump
-          psql "$DATABASE_URL" -c "CREATE DATABASE pos_restore_test"
-          pg_restore --no-owner --dbname=postgresql+psycopg://pos:pos@localhost:5432/pos_restore_test /tmp/pos-certification.dump
-          psql postgresql+psycopg://pos:pos@localhost:5432/pos_restore_test -c "SELECT 1 FROM alembic_version LIMIT 1"
+          pg_dump "$LIBPQ_DATABASE_URL" --format=custom --file=/tmp/pos-certification.dump
+          createdb "$LIBPQ_DATABASE_URL" pos_restore_test
+          pg_restore --no-owner --dbname=postgresql://pos:pos@localhost:5432/pos_restore_test /tmp/pos-certification.dump
+          psql postgresql://pos:pos@localhost:5432/pos_restore_test -c "SELECT 1 FROM alembic_version LIMIT 1"
 
       - name: Validate production Compose configuration
         env:
           POSTGRES_PASSWORD: certification-db-password
+          AUTH_SECRET: certification-only-secret-that-is-at-least-32-characters
         run: docker compose -f compose.production.yml config --quiet
 
       - name: Build production container
@@ -93,6 +95,7 @@ jobs:
       - name: Start disposable production stack
         env:
           POSTGRES_PASSWORD: certification-db-password
+          AUTH_SECRET: certification-only-secret-that-is-at-least-32-characters
         run: docker compose -f compose.production.yml up -d --build
 
       - name: Production smoke test
