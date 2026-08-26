@@ -12,7 +12,7 @@ class Settings:
     environment: str
     database_url: str
     auth_secret: str
-    redis_url: str
+    redis_url: str = ""
     openai_api_key: str | None = None
     allowed_hosts: tuple[str, ...] = ()
     max_request_body_bytes: int = 2 * 1024 * 1024
