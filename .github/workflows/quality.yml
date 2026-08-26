@@ -50,8 +50,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "24.18.1"
-          cache: npm
-          cache-dependency-path: hardware-agent/package-lock.json
       - name: Install hardware agent dependencies
         run: npm install --ignore-scripts
       - name: Test hardware agent
