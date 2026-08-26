@@ -79,4 +79,4 @@ def test_reports_are_store_scoped_and_financially_exact():
 
         other_store = ReportRepository(session, store_id="store-2").sales(start=start, end=end)
         assert other_store["order_count"] == 0
-        assert other_store["gross_sales"] == "0"
+        assert other_store["gross_sales"] == "0.00"
