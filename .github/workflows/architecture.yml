@@ -27,8 +27,18 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+      redis:
+        image: redis:8.2-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     env:
       DATABASE_URL: postgresql+psycopg://pos:pos@localhost:5432/pos_test
+      REDIS_URL: redis://localhost:6379/0
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -50,6 +60,9 @@ jobs:
 
       - name: Run unit and integration tests
         run: python -m pytest -q
+
+      - name: Verify Redis runtime boundary
+        run: python -c "import os; from src.infrastructure.redis.client import check_redis, create_redis_client; assert check_redis(create_redis_client(os.environ['REDIS_URL']))"
 
       - name: Upgrade database to head
         run: alembic upgrade head
