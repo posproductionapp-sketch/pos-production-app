@@ -32,6 +32,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
+      APP_ENV: development
       DATABASE_URL: postgresql+psycopg://pos:pos@localhost:5432/pos_test
       REDIS_URL: redis://localhost:6379/0
     steps:
