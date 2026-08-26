@@ -115,6 +115,9 @@ jobs:
         run: curl --fail --silent http://127.0.0.1:8000/ready
 
       - name: Production rollback/migration safety check
+        env:
+          POSTGRES_PASSWORD: certification-db-password
+          AUTH_SECRET: certification-only-secret-that-is-at-least-32-characters
         run: |
           docker compose -f compose.production.yml exec -T app alembic downgrade -1
           docker compose -f compose.production.yml exec -T app alembic upgrade head
