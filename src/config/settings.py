@@ -12,6 +12,7 @@ class Settings:
     environment: str
     database_url: str
     auth_secret: str
+    redis_url: str
     openai_api_key: str | None = None
     allowed_hosts: tuple[str, ...] = ()
     max_request_body_bytes: int = 2 * 1024 * 1024
@@ -23,10 +24,14 @@ class Settings:
         if self.environment == "production":
             if not self.database_url:
                 raise RuntimeError("DATABASE_URL is required")
+            if not self.redis_url:
+                raise RuntimeError("REDIS_URL is required")
             if len(self.auth_secret) < 32:
                 raise RuntimeError("AUTH_SECRET must be at least 32 characters")
             if not self.database_url.startswith(("postgresql://", "postgresql+psycopg://")):
                 raise RuntimeError("Production DATABASE_URL must use PostgreSQL")
+            if not self.redis_url.startswith(("redis://", "rediss://")):
+                raise RuntimeError("Production REDIS_URL must use Redis")
             if not self.allowed_hosts:
                 raise RuntimeError("ALLOWED_HOSTS is required in production")
             if "*" in self.allowed_hosts:
@@ -37,6 +42,7 @@ def load_settings() -> Settings:
     environment = os.getenv("APP_ENV", "development").strip().lower()
     database_url = os.getenv("DATABASE_URL", "").strip()
     auth_secret = os.getenv("AUTH_SECRET", "")
+    redis_url = os.getenv("REDIS_URL", "").strip()
     raw_hosts = os.getenv("ALLOWED_HOSTS", "").strip()
     allowed_hosts = tuple(host.strip() for host in raw_hosts.split(",") if host.strip())
     try:
@@ -47,6 +53,7 @@ def load_settings() -> Settings:
         environment=environment,
         database_url=database_url,
         auth_secret=auth_secret,
+        redis_url=redis_url,
         openai_api_key=os.getenv("OPENAI_API_KEY"),
         allowed_hosts=allowed_hosts,
         max_request_body_bytes=max_request_body_bytes,
