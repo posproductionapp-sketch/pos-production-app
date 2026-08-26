@@ -1,0 +1,134 @@
+name: Production Certification
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  certify:
+    name: Final production certification
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: pos
+          POSTGRES_PASSWORD: pos
+          POSTGRES_DB: pos_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pos -d pos_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:8.2-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql+psycopg://pos:pos@localhost:5432/pos_test
+      REDIS_URL: redis://localhost:6379/0
+      AUTH_SECRET: certification-only-secret-that-is-at-least-32-characters
+      APP_ENV: production
+    steps:
+      - name: Checkout exact release commit
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install application and test dependencies
+        run: python -m pip install --upgrade pip && pip install -e ".[test]"
+
+      - name: Architecture contracts
+        run: python tests/architecture/test_contracts.py
+
+      - name: Compile Python sources
+        run: python -m compileall -q src tests
+
+      - name: Full Python test suite
+        run: pytest -q
+
+      - name: Redis runtime certification
+        run: python -c "import os; from src.infrastructure.redis.client import check_redis, create_redis_client; assert check_redis(create_redis_client(os.environ['REDIS_URL']))"
+
+      - name: Dependency vulnerability audit
+        run: python -m pip install pip-audit && pip-audit
+
+      - name: Clean database migration
+        run: alembic upgrade head
+
+      - name: Migration downgrade and upgrade certification
+        run: alembic downgrade base && alembic upgrade head && alembic upgrade head
+
+      - name: PostgreSQL backup and restore certification
+        run: |
+          pg_dump "$DATABASE_URL" --format=custom --file=/tmp/pos-certification.dump
+          psql "$DATABASE_URL" -c "CREATE DATABASE pos_restore_test"
+          pg_restore --no-owner --dbname=postgresql+psycopg://pos:pos@localhost:5432/pos_restore_test /tmp/pos-certification.dump
+          psql postgresql+psycopg://pos:pos@localhost:5432/pos_restore_test -c "SELECT 1 FROM alembic_version LIMIT 1"
+
+      - name: Validate production Compose configuration
+        env:
+          POSTGRES_PASSWORD: certification-db-password
+        run: docker compose -f compose.production.yml config --quiet
+
+      - name: Build production container
+        run: docker build --tag pos-production-certification:${GITHUB_SHA} .
+
+      - name: Start disposable production stack
+        env:
+          POSTGRES_PASSWORD: certification-db-password
+        run: docker compose -f compose.production.yml up -d --build
+
+      - name: Production smoke test
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8000/health; then exit 0; fi
+            sleep 2
+          done
+          docker compose -f compose.production.yml ps
+          docker compose -f compose.production.yml logs --no-color app
+          exit 1
+
+      - name: Production readiness smoke test
+        run: curl --fail --silent http://127.0.0.1:8000/ready
+
+      - name: Production rollback/migration safety check
+        run: |
+          docker compose -f compose.production.yml exec -T app alembic downgrade -1
+          docker compose -f compose.production.yml exec -T app alembic upgrade head
+          docker compose -f compose.production.yml exec -T app alembic upgrade head
+
+      - name: Stop disposable production stack
+        if: always()
+        run: docker compose -f compose.production.yml down -v
+
+  hardware:
+    name: Hardware agent certification
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.18.1'
+      - name: Install hardware agent dependencies
+        working-directory: hardware-agent
+        run: npm install --ignore-scripts
+      - name: Test hardware agent
+        working-directory: hardware-agent
+        run: npm test
