@@ -10,6 +10,7 @@ function App() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [authenticated, setAuthenticated] = useState(false)
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -22,8 +23,8 @@ function App() {
         body: JSON.stringify({ tenant_id: tenantId, username, password }),
       })
       if (!response.ok) throw new Error('Invalid credentials')
-      const data = (await response.json()) as { access_token: string }
-      localStorage.setItem('pos_access_token', data.access_token)
+      await response.json()
+      setAuthenticated(true)
     } catch {
       setError('เข้าสู่ระบบไม่สำเร็จ กรุณาตรวจสอบข้อมูลอีกครั้ง')
     } finally {
@@ -44,16 +45,16 @@ function App() {
       <section className="form-panel">
         <div className="form-card">
           <p className="eyebrow">WELCOME BACK</p>
-          <h2>เข้าสู่ระบบ</h2>
-          <p className="muted">ลงชื่อเข้าใช้เพื่อเริ่มงานที่หน้าร้าน</p>
-          <form onSubmit={submit}>
+          <h2>{authenticated ? 'เข้าสู่ระบบสำเร็จ' : 'เข้าสู่ระบบ'}</h2>
+          <p className="muted">{authenticated ? 'Authentication boundary พร้อมใช้งานสำหรับขั้นตอนถัดไป' : 'ลงชื่อเข้าใช้เพื่อเริ่มงานที่หน้าร้าน'}</p>
+          {!authenticated && <form onSubmit={submit}>
             <label>Tenant ID<input value={tenantId} onChange={(e) => setTenantId(e.target.value)} required autoComplete="organization" /></label>
             <label>ชื่อผู้ใช้<input value={username} onChange={(e) => setUsername(e.target.value)} required autoComplete="username" /></label>
             <label>รหัสผ่าน<input type="password" minLength={12} value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" /></label>
             {error && <p className="error" role="alert">{error}</p>}
             <button disabled={loading}>{loading ? 'กำลังตรวจสอบ…' : 'เข้าสู่ระบบ'}</button>
-          </form>
-          <p className="security-note">การเชื่อมต่อได้รับการปกป้องด้วยการยืนยันตัวตนแบบ Bearer Token</p>
+          </form>}
+          <p className="security-note">Token persistence จะถูกออกแบบพร้อม session/offline architecture โดยไม่เก็บ bearer token ใน localStorage</p>
         </div>
       </section>
     </main>
