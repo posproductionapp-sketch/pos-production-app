@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#f7f9fc">
+  <title>ProdX — POS Login</title>
+  <link rel="stylesheet" href="./login.css">
+</head>
+<body>
+  <main class="login-shell" data-theme="light">
+    <section class="login-card" aria-label="POS sign in">
+      <header class="brand">
+        <div class="brand-mark" aria-hidden="true">✦</div>
+        <div>
+          <div class="wordmark">PRODX</div>
+          <div class="operator">BOY THODSAWAT</div>
+        </div>
+      </header>
+
+      <div class="form-copy">
+        <h1>Welcome back</h1>
+        <p>Sign in to continue to your store.</p>
+      </div>
+
+      <form id="login-form" novalidate>
+        <label for="employee">Employee ID / Username</label>
+        <div class="field">
+          <span class="field-icon" aria-hidden="true">◯</span>
+          <input id="employee" name="employee" autocomplete="username" placeholder="Enter your Employee ID or Username" required>
+        </div>
+
+        <label for="pin">PIN / Password</label>
+        <div class="field">
+          <span class="field-icon" aria-hidden="true">▣</span>
+          <input id="pin" name="pin" type="password" autocomplete="current-password" placeholder="Enter your PIN or Password" required>
+          <button class="icon-button" id="toggle-pin" type="button" aria-label="Show password">◉</button>
+        </div>
+
+        <div class="actions">
+          <button class="forgot" type="button">Forgot PIN or Password?</button>
+          <button class="sign-in" type="submit">SIGN IN</button>
+        </div>
+        <p class="form-status" id="form-status" role="status" aria-live="polite"></p>
+      </form>
+
+      <footer class="store-status">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span>Store 05 — Connected</span>
+      </footer>
+    </section>
+  </main>
+  <script src="./login.js" defer></script>
+</body>
+</html>
