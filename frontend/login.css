@@ -1,0 +1,100 @@
+:root {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #1f2430;
+  background: #f7f9fc;
+  font-synthesis: none;
+}
+
+* { box-sizing: border-box; }
+
+html, body { margin: 0; min-height: 100%; }
+
+body {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #f9fbff 0%, #f2f5fa 100%);
+}
+
+button, input { font: inherit; }
+
+.login-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 32px 20px;
+}
+
+.login-card {
+  width: min(100%, 520px);
+  min-height: 720px;
+  display: flex;
+  flex-direction: column;
+  padding: 52px 44px 34px;
+  border: 1px solid rgba(24, 34, 52, .08);
+  border-radius: 28px;
+  background: rgba(255,255,255,.96);
+  box-shadow: 0 24px 70px rgba(34, 49, 79, .10);
+}
+
+.brand { display: flex; align-items: center; gap: 14px; justify-content: center; }
+.brand-mark {
+  width: 40px; height: 40px; border-radius: 12px;
+  display: grid; place-items: center;
+  color: #fff;
+  background: linear-gradient(135deg, #18bfc8, #7540e8);
+  font-size: 20px;
+  box-shadow: 0 8px 18px rgba(91, 76, 216, .22);
+}
+.wordmark { font-size: 30px; font-weight: 800; letter-spacing: .22em; line-height: 1; }
+.operator { margin-top: 8px; font-size: 11px; font-weight: 700; letter-spacing: .14em; color: #7b8494; }
+
+.form-copy { margin: 62px 0 30px; text-align: center; }
+.form-copy h1 { margin: 0; font-size: 30px; letter-spacing: -.02em; }
+.form-copy p { margin: 10px 0 0; color: #7c8492; font-size: 14px; }
+
+form { display: grid; gap: 12px; }
+label { margin-top: 4px; font-size: 14px; font-weight: 750; color: #2b313c; }
+.field {
+  min-height: 64px;
+  display: flex; align-items: center; gap: 12px;
+  padding: 0 16px;
+  border: 1px solid #e5e9f0;
+  border-radius: 16px;
+  background: #fbfcfe;
+  transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+}
+.field:focus-within { border-color: #6973b9; background: #fff; box-shadow: 0 0 0 4px rgba(105,115,185,.10); }
+.field-icon { width: 22px; color: #8d96a5; text-align: center; }
+input { width: 100%; border: 0; outline: 0; background: transparent; color: #252b36; font-size: 15px; }
+input::placeholder { color: #a8afb9; }
+.icon-button { border: 0; background: transparent; color: #8d96a5; cursor: pointer; padding: 8px; }
+
+.actions { margin-top: 10px; display: grid; gap: 12px; }
+.sign-in {
+  min-height: 60px; border: 0; border-radius: 16px; cursor: pointer;
+  color: #fff; font-weight: 800; font-size: 16px; letter-spacing: .08em;
+  background: linear-gradient(135deg, #344674 0%, #28375f 100%);
+  box-shadow: 0 12px 24px rgba(40,55,95,.20);
+}
+.sign-in:hover { transform: translateY(-1px); }
+.forgot { order: 2; border: 0; background: transparent; color: #747d8d; font-size: 13px; cursor: pointer; }
+.form-status { min-height: 18px; margin: 2px 0 0; text-align: center; color: #687283; font-size: 12px; }
+
+.store-status { margin-top: auto; padding-top: 34px; display: flex; align-items: center; justify-content: center; gap: 9px; color: #7b8492; font-size: 13px; font-weight: 650; }
+.status-dot { width: 9px; height: 9px; border-radius: 50%; background: #69ad4d; box-shadow: 0 0 0 4px rgba(105,173,77,.10); }
+
+[data-theme="dark"] { color: #eef2fb; background: #0d1220; }
+[data-theme="dark"] .login-card { background: #151b2a; border-color: rgba(255,255,255,.08); box-shadow: 0 24px 70px rgba(0,0,0,.35); }
+[data-theme="dark"] .form-copy p, [data-theme="dark"] .store-status, [data-theme="dark"] .operator { color: #9ca6ba; }
+[data-theme="dark"] label { color: #e6eaf2; }
+[data-theme="dark"] .field { background: #101625; border-color: #2a3348; }
+[data-theme="dark"] .field:focus-within { background: #121a2b; border-color: #7984d0; }
+[data-theme="dark"] input { color: #f4f6fb; }
+[data-theme="dark"] input::placeholder { color: #6f798c; }
+[data-theme="dark"] .forgot { color: #a8b1c2; }
+
+@media (max-width: 560px) {
+  .login-shell { padding: 18px 14px; }
+  .login-card { min-height: calc(100vh - 36px); padding: 38px 24px 26px; border-radius: 24px; }
+  .form-copy { margin-top: 48px; }
+  .wordmark { font-size: 26px; }
+}
