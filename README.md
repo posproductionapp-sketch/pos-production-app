@@ -6,9 +6,10 @@ Production POS system for sales, inventory, orders, payments, refunds, shifts, a
 
 - Domain: deterministic business rules, money invariants, shift lifecycle, and authorization primitives.
 - Application: use cases and Unit of Work transaction boundaries.
-- Infrastructure: PostgreSQL/SQLAlchemy repositories, catalog, inventory locking, audit, idempotency, payments/refunds, authentication, shifts/cash, and sync ledger.
+- Infrastructure: PostgreSQL/SQLAlchemy repositories, catalog, inventory locking, audit, idempotency, payments/refunds, authentication, shifts/cash, Redis runtime boundary, and sync ledger.
 - API: FastAPI HTTP boundary with bearer authentication, RBAC, health/readiness, request correlation, security headers, catalog, sales, inventory, payments/refunds, and shift/cash endpoints.
 - Database: Alembic migrations; current head is `0003_shifts_and_cash`.
+- Runtime dependencies: PostgreSQL and Redis are active production dependencies; the production Compose stack health-gates both before starting the API.
 
 ## Production business flow
 
@@ -20,10 +21,11 @@ Sales and refunds require idempotency keys. Inventory changes are transaction-sc
 
 ```bash
 export DATABASE_URL='postgresql+psycopg://pos:pos@localhost:5432/pos_test'
+export REDIS_URL='redis://localhost:6379/0'
 export AUTH_SECRET='replace-with-a-random-secret-of-at-least-32-characters'
 alembic upgrade head
 pytest
 uvicorn src.api.main:app --host 0.0.0.0 --port 8000
 ```
 
-Production deployment requirements are documented in `docs/production/READINESS.md`.
+Production deployment and final certification requirements are documented in `docs/production/READINESS.md` and `docs/production/DEPLOYMENT.md`.
