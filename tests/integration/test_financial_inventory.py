@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from src.infrastructure.database.models import Base, StoreModel, ProductModel, ProductVariantModel, OrderModel
 from src.infrastructure.database.inventory import InventoryInsufficientStock, SqlAlchemyInventoryRepository
 from src.infrastructure.database.payment import RefundExceedsPayment, SqlAlchemyPaymentRepository, SqlAlchemyRefundRepository
+from src.infrastructure.database.idempotency import SqlAlchemyIdempotencyRepository
 
 
 @pytest.fixture()
@@ -53,3 +54,17 @@ def test_refund_cannot_exceed_payment(engine):
         refunds.record(payment_id=payment.id, amount=Decimal("60"), currency="THB", state="completed", provider_reference="ref-1")
         with pytest.raises(RefundExceedsPayment):
             refunds.record(payment_id=payment.id, amount=Decimal("50"), currency="THB", state="completed", provider_reference="ref-2")
+
+
+def test_idempotency_reserve_new_reports_duplicate_without_recreating(engine):
+    with Session(engine) as session, session.begin():
+        first = SqlAlchemyIdempotencyRepository(session, tenant_id="t", store_id="s")
+        record, created = first.reserve_new("refund", "key-1", "refund-1")
+        assert created is True
+        assert record.result_reference == "refund-1"
+
+    with Session(engine) as session, session.begin():
+        second = SqlAlchemyIdempotencyRepository(session, tenant_id="t", store_id="s")
+        record, created = second.reserve_new("refund", "key-1", "refund-1")
+        assert created is False
+        assert record.result_reference == "refund-1"
