@@ -16,7 +16,7 @@ from src.domain.contracts import Cart, LineItem, Money
 from src.infrastructure.database.catalog import CatalogRepository
 from src.infrastructure.database.idempotency import IdempotencyConflict, SqlAlchemyIdempotencyRepository
 from src.infrastructure.database.inventory import InventoryInsufficientStock, SqlAlchemyInventoryRepository
-from src.infrastructure.database.models import OrderItemModel, OrderModel, PaymentModel, ProductVariantModel
+from src.infrastructure.database.models import OrderItemModel, OrderModel, PaymentModel, ProductVariantModel, StoreModel
 from src.infrastructure.database.payment import PaymentConflict, RefundExceedsPayment, SqlAlchemyPaymentRepository, SqlAlchemyRefundRepository
 from src.infrastructure.database.shifts import ShiftRepository
 from src.services.checkout import CheckoutService
@@ -218,11 +218,20 @@ def build_pos_router(principal_dependency, session_dependency) -> APIRouter:
             if not created:
                 return {"refund_id": reserved.result_reference, "duplicate": True}
 
-            payment = session.get(PaymentModel, payload.payment_id)
+            payment = session.scalar(
+                select(PaymentModel)
+                .join(OrderModel, OrderModel.id == PaymentModel.order_id)
+                .join(StoreModel, StoreModel.id == OrderModel.store_id)
+                .where(
+                    PaymentModel.id == payload.payment_id,
+                    OrderModel.store_id == current.store_id,
+                    StoreModel.tenant_id == current.tenant_id,
+                )
+            )
             if payment is None:
                 raise HTTPException(status_code=404, detail="Payment not found")
             order = session.get(OrderModel, payment.order_id)
-            if order is None or order.store_id != current.store_id:
+            if order is None:
                 raise HTTPException(status_code=404, detail="Payment not found")
             try:
                 refund = SqlAlchemyRefundRepository(session).record(payment_id=payload.payment_id, amount=payload.amount, currency=payment.currency, state="captured", provider_reference=payload.provider_reference)
