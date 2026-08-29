@@ -74,7 +74,7 @@ jobs:
       - name: Production build
         run: npm run build
       - name: Frontend test gate
-        run: npm test -- --run
+        run: npm test
 
   hardware-agent:
     runs-on: ubuntu-latest
