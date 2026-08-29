@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles.css';
+import { buildSalePayload, canAddToCart, cartSubtotal } from './pos_logic';
 
 const API = import.meta.env.VITE_API_URL ?? '';
 const TOKEN_KEY = 'prodx_access_token';
@@ -97,12 +98,12 @@ function Sales({ onLogout }: { onLogout: () => void }) {
 
   const filtered = useMemo(() => products.filter(p => `${p.name} ${p.sku} ${p.description}`.toLowerCase().includes(query.toLowerCase())), [products, query]);
   const cartItems = products.filter(p => (cart[p.variant_id] ?? 0) > 0);
-  const subtotal = cartItems.reduce((sum, p) => sum + Number(p.price) * (cart[p.variant_id] ?? 0), 0);
+  const subtotal = cartSubtotal(cartItems.map(p => ({ price: p.price, quantity: cart[p.variant_id] ?? 0 })));
   const cartCount = Object.values(cart).reduce((sum, quantity) => sum + quantity, 0);
 
   function addToCart(product: Product) {
     const quantity = cart[product.variant_id] ?? 0;
-    if (quantity >= product.stock) return;
+    if (!canAddToCart(product.stock, quantity)) return;
     setError(''); setCart(current => ({ ...current, [product.variant_id]: quantity + 1 }));
   }
 
@@ -116,11 +117,8 @@ function Sales({ onLogout }: { onLogout: () => void }) {
     setCheckoutLoading(true); setError(''); setSuccess(null);
     try {
       const items = cartItems.map(p => ({ variant_id: p.variant_id, quantity: cart[p.variant_id] }));
-      const result = await api<SaleResult>('/v1/sales', {
-        method: 'POST',
-        headers: { 'Idempotency-Key': crypto.randomUUID() },
-        body: JSON.stringify({ items, payment_method: paymentMethod, payment_reference: `POS-${crypto.randomUUID()}` }),
-      });
+      const sale = buildSalePayload(items, paymentMethod);
+      const result = await api<SaleResult>('/v1/sales', { method: 'POST', headers: { 'Idempotency-Key': sale.idempotencyKey }, body: JSON.stringify(sale.payload) });
       setSuccess(result); setCart({}); await loadCatalog();
     } catch (err) { setError(err instanceof Error ? err.message : 'ชำระเงินไม่สำเร็จ'); }
     finally { setCheckoutLoading(false); }
