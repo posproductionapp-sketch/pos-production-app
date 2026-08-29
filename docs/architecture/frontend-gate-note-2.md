@@ -1,0 +1,1 @@
+Frontend completion gate: authenticated state is hydrated from `/v1/me`; invalid sessions are cleared; tenant/store identity and navigation affordances derive from the authenticated principal. Backend authorization remains authoritative.
