@@ -21,6 +21,16 @@ class SqlAlchemyInventoryRepository:
         self.session = session
         self.store_id = store_id
 
+    def quantity(self, *, variant_id: str, lock: bool = False) -> Decimal:
+        statement = select(InventoryBalanceModel).where(
+            InventoryBalanceModel.store_id == self.store_id,
+            InventoryBalanceModel.variant_id == variant_id,
+        )
+        if lock:
+            statement = statement.with_for_update()
+        row = self.session.scalar(statement)
+        return row.quantity if row is not None else Decimal("0")
+
     def adjust(self, *, variant_id: str, delta: Decimal, reason: str, correlation_id: str) -> Decimal:
         if delta == 0:
             raise ValueError("Inventory delta cannot be zero")

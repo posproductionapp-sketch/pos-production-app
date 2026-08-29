@@ -1,19 +1,27 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles.css';
 
 const API = import.meta.env.VITE_API_URL ?? '';
+const TOKEN_KEY = 'prodx_access_token';
 
-type Product = { name: string; price: string; category: string; stock: number };
+type Product = { variant_id: string; sku: string; name: string; description: string; price: string; currency: string; stock: number };
+type SaleResult = { order_id: string; payment_id: string; subtotal: string; discount: string; tax: string; total: string; currency: string };
+type Shift = { shift_id: string; state: 'open' | 'closed'; opening_cash: string };
 
-const products: Product[] = [
-  { name: 'น้ำดื่ม 600ml', price: '10.00', category: 'เครื่องดื่ม', stock: 120 },
-  { name: 'กาแฟพร้อมดื่ม', price: '35.00', category: 'เครื่องดื่ม', stock: 45 },
-  { name: 'ขนมปัง', price: '20.00', category: 'เบเกอรี่', stock: 60 },
-  { name: 'น้ำอัดลม 325ml', price: '15.00', category: 'เครื่องดื่ม', stock: 100 },
-  { name: 'นม UHT 1L', price: '35.00', category: 'เครื่องดื่ม', stock: 80 },
-  { name: 'ขนมปังไส้สตรอว์เบอร์รี่', price: '25.00', category: 'เบเกอรี่', stock: 60 },
-];
+async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const token = sessionStorage.getItem(TOKEN_KEY);
+  const headers = new Headers(init.headers);
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+  if (init.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
+  const response = await fetch(`${API}${path}`, { ...init, headers });
+  if (!response.ok) {
+    let detail = `Request failed (${response.status})`;
+    try { const body = await response.json() as { detail?: string }; if (body.detail) detail = body.detail; } catch { /* keep status */ }
+    throw new Error(detail);
+  }
+  return response.json() as Promise<T>;
+}
 
 function Logo({ compact = false }: { compact?: boolean }) {
   return <div className={compact ? 'logo logo-compact' : 'logo'} aria-label="PRODX POS">
@@ -34,11 +42,9 @@ function Login({ onLogin }: { onLogin: () => void }) {
   async function submit(e: React.FormEvent) {
     e.preventDefault(); setError(''); setLoading(true);
     try {
-      const res = await fetch(`${API}/v1/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tenant_id: tenantId, username, password }) });
-      if (!res.ok) throw new Error('Invalid credentials');
-      const data = await res.json() as { access_token: string };
-      sessionStorage.setItem('prodx_access_token', data.access_token); onLogin();
-    } catch { setError('เข้าสู่ระบบไม่สำเร็จ กรุณาตรวจสอบข้อมูลแล้วลองอีกครั้ง'); }
+      const data = await api<{ access_token: string }>('/v1/auth/login', { method: 'POST', body: JSON.stringify({ tenant_id: tenantId, username, password }) });
+      sessionStorage.setItem(TOKEN_KEY, data.access_token); onLogin();
+    } catch (err) { setError(err instanceof Error ? err.message : 'เข้าสู่ระบบไม่สำเร็จ'); }
     finally { setLoading(false); }
   }
 
@@ -65,21 +71,67 @@ function Login({ onLogin }: { onLogin: () => void }) {
 
 function Sales({ onLogout }: { onLogout: () => void }) {
   const [query, setQuery] = useState('');
-  const [cart, setCart] = useState<Product[]>([]);
-  const filtered = products.filter(p => `${p.name} ${p.category}`.toLowerCase().includes(query.toLowerCase()));
-  const total = cart.reduce((sum, p) => sum + Number(p.price), 0);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [cart, setCart] = useState<Record<string, number>>({});
+  const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [loading, setLoading] = useState(true);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState<SaleResult | null>(null);
+  const [shift, setShift] = useState<Shift | null>(null);
 
-  function cartQuantity(product: Product) {
-    return cart.filter(item => item.name === product.name).length;
+  async function loadCatalog() {
+    setLoading(true); setError('');
+    try {
+      const [catalog, currentShift] = await Promise.all([
+        api<{ items: Product[] }>('/v1/catalog/variants'),
+        api<Shift | null>('/v1/shifts/current'),
+      ]);
+      setProducts(catalog.items.map(p => ({ ...p, stock: Number(p.stock) })));
+      setShift(currentShift);
+    } catch (err) { setError(err instanceof Error ? err.message : 'ไม่สามารถโหลดข้อมูลสินค้าได้'); }
+    finally { setLoading(false); }
   }
+
+  useEffect(() => { void loadCatalog(); }, []);
+
+  const filtered = useMemo(() => products.filter(p => `${p.name} ${p.sku} ${p.description}`.toLowerCase().includes(query.toLowerCase())), [products, query]);
+  const cartItems = products.filter(p => (cart[p.variant_id] ?? 0) > 0);
+  const subtotal = cartItems.reduce((sum, p) => sum + Number(p.price) * (cart[p.variant_id] ?? 0), 0);
+  const cartCount = Object.values(cart).reduce((sum, quantity) => sum + quantity, 0);
 
   function addToCart(product: Product) {
-    if (cartQuantity(product) >= product.stock) return;
-    setCart(current => [...current, product]);
+    const quantity = cart[product.variant_id] ?? 0;
+    if (quantity >= product.stock) return;
+    setError(''); setCart(current => ({ ...current, [product.variant_id]: quantity + 1 }));
   }
 
-  return <main className="dashboard"><header className="topbar"><Logo /><div className="top-actions"><span className="online"><i /> Shift Open</span><span className="store" aria-label="Current store">Store A</span><button onClick={onLogout}>ออกจากระบบ</button></div></header><div className="dashboard-layout"><aside className="sidebar"><nav aria-label="Primary navigation">{['⌂ Dashboard','▣ Sales','◈ Products','◫ Inventory','♙ Customers','⌁ Reports','◉ Cash & Shift','⚙ Settings'].map((label, i) => <span className={i === 1 ? 'nav-item nav-active' : 'nav-item nav-disabled'} aria-current={i === 1 ? 'page' : undefined} aria-disabled={i === 1 ? undefined : true} key={label}>{label}</span>)}</nav></aside><section className="dash-content sales-view"><div className="dash-head"><div><span className="eyebrow">SALES • POS COUNTER</span><h1>หน้าขาย</h1><p>เลือกสินค้าเพื่อเริ่มรายการ</p></div><div className="stat"><span>ยอดขายวันนี้</span><strong>฿28,540.00</strong></div></div><div className="pos-grid"><section className="catalog"><div className="search-row"><input aria-label="ค้นหาสินค้า" placeholder="ค้นหาสินค้า…" value={query} onChange={e => setQuery(e.target.value)} /><div className="chips"><button className="active">ทั้งหมด</button><button>เครื่องดื่ม</button><button>เบเกอรี่</button></div></div><div className="product-grid">{filtered.map(p => { const quantity = cartQuantity(p); const atStockLimit = quantity >= p.stock; return <button className="product" key={p.name} onClick={() => addToCart(p)} disabled={atStockLimit} aria-label={`${p.name}, ราคา ${p.price} บาท, คงเหลือ ${p.stock - quantity}`}><span className="product-icon">{p.name[0]}</span><strong>{p.name}</strong><small>{p.category} • เหลือ {p.stock - quantity}</small><b>฿{p.price}</b></button>; })}</div></section><aside className="cart"><div className="cart-head"><h2>ตะกร้า ({cart.length})</h2><span>รายการขาย</span></div>{cart.length === 0 ? <div className="empty">ยังไม่มีสินค้า<br/><small>แตะสินค้าเพื่อเพิ่มลงรายการ</small></div> : <div className="cart-lines">{cart.map((p, i) => <div className="cart-line" key={`${p.name}-${i}`}><span>{p.name}</span><strong>฿{p.price}</strong></div>)}</div>}<div className="cart-total"><span>รวมทั้งหมด</span><strong>฿{total.toFixed(2)}</strong></div><button className="submit checkout" disabled={!cart.length}>ชำระเงิน</button></aside></div></section></div></main>;
+  function removeFromCart(product: Product) {
+    const quantity = cart[product.variant_id] ?? 0;
+    setCart(current => ({ ...current, [product.variant_id]: Math.max(0, quantity - 1) }));
+  }
+
+  async function checkout() {
+    if (!cartItems.length || checkoutLoading) return;
+    setCheckoutLoading(true); setError(''); setSuccess(null);
+    try {
+      const items = cartItems.map(p => ({ variant_id: p.variant_id, quantity: cart[p.variant_id] }));
+      const result = await api<SaleResult>('/v1/sales', {
+        method: 'POST',
+        headers: { 'Idempotency-Key': crypto.randomUUID() },
+        body: JSON.stringify({ items, payment_method: paymentMethod, payment_reference: `POS-${crypto.randomUUID()}` }),
+      });
+      setSuccess(result); setCart({}); await loadCatalog();
+    } catch (err) { setError(err instanceof Error ? err.message : 'ชำระเงินไม่สำเร็จ'); }
+    finally { setCheckoutLoading(false); }
+  }
+
+  return <main className="dashboard"><header className="topbar"><Logo /><div className="top-actions"><span className={shift?.state === 'open' ? 'online' : 'error'}><i /> {shift?.state === 'open' ? 'Shift Open' : 'Shift Closed'}</span><span className="store" aria-label="Current store">Store</span><button onClick={onLogout}>ออกจากระบบ</button></div></header><div className="dashboard-layout"><aside className="sidebar"><nav aria-label="Primary navigation">{['⌂ Dashboard','▣ Sales','◈ Products','◫ Inventory','♙ Customers','⌁ Reports','◉ Cash & Shift','⚙ Settings'].map((label, i) => <span className={i === 1 ? 'nav-item nav-active' : 'nav-item nav-disabled'} aria-current={i === 1 ? 'page' : undefined} aria-disabled={i === 1 ? undefined : true} key={label}>{label}</span>)}</nav></aside><section className="dash-content sales-view"><div className="dash-head"><div><span className="eyebrow">SALES • POS COUNTER</span><h1>หน้าขาย</h1><p>เลือกสินค้าเพื่อเริ่มรายการ</p></div><div className="stat"><span>ยอดรายการนี้</span><strong>฿{subtotal.toFixed(2)}</strong></div></div>
+    {loading && <div className="loading" role="status">กำลังโหลดสินค้า…</div>}
+    {error && <div className="error" role="alert">{error}</div>}
+    {success && <div className="success" role="status">ชำระเงินสำเร็จ · Order {success.order_id} · ฿{success.total}</div>}
+    <div className="pos-grid"><section className="catalog"><div className="search-row"><input aria-label="ค้นหาสินค้า" placeholder="ค้นหาสินค้า…" value={query} onChange={e => setQuery(e.target.value)} /></div><div className="product-grid">{filtered.map(p => { const quantity = cart[p.variant_id] ?? 0; const remaining = p.stock - quantity; return <button className="product" key={p.variant_id} onClick={() => addToCart(p)} disabled={remaining <= 0} aria-label={`${p.name}, ราคา ${p.price} บาท, คงเหลือ ${remaining}`}><span className="product-icon">{p.name[0]}</span><strong>{p.name}</strong><small>{p.description || p.sku} • เหลือ {remaining}</small><b>฿{p.price}</b></button>; })}</div></section><aside className="cart"><div className="cart-head"><h2>ตะกร้า ({cartCount})</h2><span>รายการขาย</span></div>{!cartItems.length ? <div className="empty">ยังไม่มีสินค้า<br/><small>แตะสินค้าเพื่อเพิ่มลงรายการ</small></div> : <div className="cart-lines">{cartItems.map(p => <div className="cart-line" key={p.variant_id}><div><span>{p.name}</span><small>× {cart[p.variant_id]}</small></div><div><strong>฿{(Number(p.price) * cart[p.variant_id]).toFixed(2)}</strong><button type="button" onClick={() => removeFromCart(p)} aria-label={`ลด ${p.name}`}>−</button></div></div>)}</div>}<div className="payment-methods" aria-label="Payment method">{['cash','promptpay','card'].map(method => <button type="button" key={method} className={paymentMethod === method ? 'active' : ''} onClick={() => setPaymentMethod(method)}>{method === 'cash' ? 'เงินสด' : method === 'promptpay' ? 'PromptPay' : 'Card'}</button>)}</div><div className="cart-total"><span>รวมทั้งหมด</span><strong>฿{subtotal.toFixed(2)}</strong></div><button className="submit checkout" onClick={checkout} disabled={!cartItems.length || checkoutLoading}>{checkoutLoading ? 'กำลังดำเนินการ…' : `ชำระเงิน · ฿${subtotal.toFixed(2)}`}</button></aside></div></section></div></main>;
 }
 
-function App() { const [loggedIn, setLoggedIn] = useState(Boolean(sessionStorage.getItem('prodx_access_token'))); return loggedIn ? <Sales onLogout={() => { sessionStorage.removeItem('prodx_access_token'); setLoggedIn(false); }} /> : <Login onLogin={() => setLoggedIn(true)} />; }
+function App() { const [loggedIn, setLoggedIn] = useState(Boolean(sessionStorage.getItem(TOKEN_KEY))); return loggedIn ? <Sales onLogout={() => { sessionStorage.removeItem(TOKEN_KEY); setLoggedIn(false); }} /> : <Login onLogin={() => setLoggedIn(true)} />; }
 createRoot(document.getElementById('root')!).render(<React.StrictMode><App /></React.StrictMode>);

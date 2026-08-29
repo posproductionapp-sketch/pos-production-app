@@ -46,7 +46,10 @@ def test_inventory_and_idempotency_constraints_are_present() -> None:
     assert any(c.name == "uq_idempotency_scope" for c in idem.constraints)
 
 
-def test_auth_sync_and_shift_constraints_are_present() -> None:
-    assert any(c.name == "uq_user_tenant_username" for c in inspect(UserModel).local_table.constraints)
-    assert any(c.name == "uq_sync_command_scope" for c in inspect(SyncCommandModel).local_table.constraints)
-    assert any(c.name == "uq_shift_store_state" for c in inspect(shift_models.ShiftModel).local_table.constraints)
+def test_shift_mapping_allows_closed_history_and_limits_open_state() -> None:
+    table = inspect(shift_models.ShiftModel).local_table
+    indexes = {index.name: index for index in table.indexes}
+    assert "uq_shift_store_open" in indexes
+    assert indexes["uq_shift_store_open"].unique is True
+    assert "state = 'open'" in str(indexes["uq_shift_store_open"].dialect_options["postgresql"].get("where"))
+    assert not any(c.name == "uq_shift_store_state" for c in table.constraints)

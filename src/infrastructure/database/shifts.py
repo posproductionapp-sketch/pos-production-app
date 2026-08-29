@@ -7,6 +7,7 @@ from uuid import uuid4
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from src.infrastructure.database.models import StoreModel
 from src.infrastructure.database.shift_models import CashMovementModel, ShiftModel
 
 
@@ -19,6 +20,11 @@ class ShiftRepository:
     def open(self, *, actor_id: str, opening_cash: Decimal) -> ShiftModel:
         if opening_cash < 0:
             raise ValueError("Opening cash cannot be negative")
+        # Lock the store row so concurrent open attempts serialize even when
+        # there is currently no open shift row to lock.
+        store = self.session.scalar(select(StoreModel).where(StoreModel.id == self.store_id).with_for_update())
+        if store is None or store.tenant_id != self.tenant_id:
+            raise ValueError("Store not found")
         existing = self.session.scalar(select(ShiftModel).where(ShiftModel.store_id == self.store_id, ShiftModel.state == "open").with_for_update())
         if existing:
             raise ValueError("An open shift already exists for this store")
@@ -28,12 +34,12 @@ class ShiftRepository:
         return row
 
     def current(self) -> ShiftModel | None:
-        return self.session.scalar(select(ShiftModel).where(ShiftModel.store_id == self.store_id, ShiftModel.state == "open").with_for_update())
+        return self.session.scalar(select(ShiftModel).where(ShiftModel.store_id == self.store_id, ShiftModel.tenant_id == self.tenant_id, ShiftModel.state == "open").with_for_update())
 
     def add_cash_movement(self, *, shift_id: str, movement_type: str, amount: Decimal, reason: str, actor_id: str, correlation_id: str) -> CashMovementModel:
         if amount <= 0:
             raise ValueError("Cash movement amount must be positive")
-        shift = self.session.scalar(select(ShiftModel).where(ShiftModel.id == shift_id, ShiftModel.store_id == self.store_id).with_for_update())
+        shift = self.session.scalar(select(ShiftModel).where(ShiftModel.id == shift_id, ShiftModel.store_id == self.store_id, ShiftModel.tenant_id == self.tenant_id).with_for_update())
         if shift is None or shift.state != "open":
             raise ValueError("Open shift is required")
         row = CashMovementModel(id=str(uuid4()), shift_id=shift_id, type=movement_type, amount=amount, reason=reason, actor_id=actor_id, correlation_id=correlation_id, created_at=datetime.now(timezone.utc))

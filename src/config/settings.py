@@ -4,6 +4,7 @@ Secrets are loaded from environment/deployment secret storage only.
 """
 
 from dataclasses import dataclass
+from decimal import Decimal, InvalidOperation
 import os
 
 
@@ -16,11 +17,14 @@ class Settings:
     openai_api_key: str | None = None
     allowed_hosts: tuple[str, ...] = ()
     max_request_body_bytes: int = 2 * 1024 * 1024
+    vat_rate: Decimal = Decimal("0")
 
     def validate_runtime(self) -> None:
         """Fail closed for production while keeping local/unit test boot lightweight."""
         if self.max_request_body_bytes < 1:
             raise RuntimeError("MAX_REQUEST_BODY_BYTES must be positive")
+        if self.vat_rate < 0 or self.vat_rate > 1:
+            raise RuntimeError("VAT_RATE must be between 0 and 1")
         if self.environment == "production":
             if not self.database_url:
                 raise RuntimeError("DATABASE_URL is required")
@@ -36,6 +40,16 @@ class Settings:
                 raise RuntimeError("ALLOWED_HOSTS is required in production")
             if "*" in self.allowed_hosts:
                 raise RuntimeError("ALLOWED_HOSTS must not contain wildcard '*' in production")
+
+
+def _decimal_env(name: str, default: str) -> Decimal:
+    try:
+        value = Decimal(os.getenv(name, default))
+    except InvalidOperation as exc:
+        raise RuntimeError(f"{name} must be a decimal") from exc
+    if value < 0 or value > 1:
+        raise RuntimeError(f"{name} must be between 0 and 1")
+    return value
 
 
 def load_settings() -> Settings:
@@ -57,4 +71,5 @@ def load_settings() -> Settings:
         openai_api_key=os.getenv("OPENAI_API_KEY"),
         allowed_hosts=allowed_hosts,
         max_request_body_bytes=max_request_body_bytes,
+        vat_rate=_decimal_env("VAT_RATE", "0"),
     )
