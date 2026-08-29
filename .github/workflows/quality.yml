@@ -44,14 +44,14 @@ jobs:
         run: python -m pip install --upgrade pip && pip install -e ".[test]"
       - name: Compile Python
         run: python -m compileall src tests
+      - name: Database migration before database-backed tests
+        run: alembic upgrade head
       - name: Architecture and unit tests
         run: pytest
       - name: Redis integration smoke check
         run: python -c "import os; from src.infrastructure.redis.client import check_redis, create_redis_client; assert check_redis(create_redis_client(os.environ['REDIS_URL']))"
       - name: Dependency vulnerability audit
         run: python -m pip install pip-audit && pip-audit
-      - name: Database migration
-        run: alembic upgrade head
       - name: Database smoke check
         run: python -c "from sqlalchemy import create_engine, text; import os; e=create_engine(os.environ['DATABASE_URL']); c=e.connect(); assert c.execute(text('select 1')).scalar()==1"
 

@@ -43,36 +43,26 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
           cache: pip
-
       - name: Install project test dependencies
         run: python -m pip install --upgrade pip && pip install -e ".[test]"
-
       - name: Run executable architecture contracts
         run: python tests/architecture/test_contracts.py
-
       - name: Compile Python sources
         run: python -m compileall -q src tests
-
+      - name: Upgrade database to head before integration tests
+        run: alembic upgrade head
       - name: Run unit and integration tests
         run: python -m pytest -q
-
       - name: Verify Redis runtime boundary
         run: python -c "import os; from src.infrastructure.redis.client import check_redis, create_redis_client; assert check_redis(create_redis_client(os.environ['REDIS_URL']))"
-
-      - name: Upgrade database to head
-        run: alembic upgrade head
-
       - name: Verify database connectivity
         run: python -c "from sqlalchemy import create_engine, text; import os; e=create_engine(os.environ['DATABASE_URL']); c=e.connect(); assert c.execute(text('select 1')).scalar()==1"
-
       - name: Verify downgrade and upgrade cycle
         run: alembic downgrade base && alembic upgrade head
-
       - name: Verify upgrade idempotency
         run: alembic upgrade head
