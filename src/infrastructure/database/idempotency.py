@@ -16,23 +16,36 @@ class SqlAlchemyIdempotencyRepository:
         self.session, self.tenant_id, self.store_id = session, tenant_id, store_id
 
     def get(self, operation: str, key: str) -> IdempotencyKeyModel | None:
-        return self.session.scalar(select(IdempotencyKeyModel).where(
-            IdempotencyKeyModel.tenant_id == self.tenant_id,
-            IdempotencyKeyModel.store_id == self.store_id,
-            IdempotencyKeyModel.operation == operation,
-            IdempotencyKeyModel.key == key,
-        ))
+        return self.session.scalar(
+            select(IdempotencyKeyModel).where(
+                IdempotencyKeyModel.tenant_id == self.tenant_id,
+                IdempotencyKeyModel.store_id == self.store_id,
+                IdempotencyKeyModel.operation == operation,
+                IdempotencyKeyModel.key == key,
+            )
+        )
 
     def reserve(self, operation: str, key: str, result_reference: str) -> IdempotencyKeyModel:
+        record, _ = self.reserve_new(operation, key, result_reference)
+        return record
+
+    def reserve_new(
+        self, operation: str, key: str, result_reference: str
+    ) -> tuple[IdempotencyKeyModel, bool]:
+        """Reserve a key and report whether this transaction created it."""
         existing = self.get(operation, key)
         if existing is not None:
             if existing.result_reference != result_reference:
                 raise IdempotencyConflict("Idempotency key is already bound to another result")
-            return existing
+            return existing, False
+
         record = IdempotencyKeyModel(
             id=f"{self.tenant_id}:{self.store_id}:{operation}:{key}",
-            tenant_id=self.tenant_id, store_id=self.store_id,
-            operation=operation, key=key, result_reference=result_reference,
+            tenant_id=self.tenant_id,
+            store_id=self.store_id,
+            operation=operation,
+            key=key,
+            result_reference=result_reference,
         )
         try:
             with self.session.begin_nested():
@@ -44,5 +57,5 @@ class SqlAlchemyIdempotencyRepository:
                 raise
             if existing.result_reference != result_reference:
                 raise IdempotencyConflict("Idempotency key is already bound to another result")
-            return existing
-        return record
+            return existing, False
+        return record, True
