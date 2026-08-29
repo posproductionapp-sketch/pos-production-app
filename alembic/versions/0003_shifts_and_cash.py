@@ -25,10 +25,10 @@ def upgrade() -> None:
         sa.Column("state", sa.String(20), nullable=False),
         sa.Column("closed_by", sa.String(36), nullable=True),
         sa.Column("closed_at", sa.DateTime(timezone=True), nullable=True),
-        sa.UniqueConstraint("store_id", "state", name="uq_shift_store_state"),
     )
     op.create_index("ix_shifts_tenant_id", "shifts", ["tenant_id"])
     op.create_index("ix_shifts_store_opened", "shifts", ["store_id", "opened_at"])
+    op.create_index("uq_shift_store_open", "shifts", ["store_id"], unique=True, postgresql_where=sa.text("state = 'open'"))
 
     op.create_table(
         "cash_movements",
