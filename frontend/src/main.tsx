@@ -54,7 +54,7 @@ function Login({ onLogin }: { onLogin: () => void }) {
       <form onSubmit={submit}>
         <label>Tenant ID<input required value={tenantId} onChange={e => setTenantId(e.target.value)} autoComplete="organization" placeholder="รหัสร้าน / องค์กร" /></label>
         <label>Username<input required value={username} onChange={e => setUsername(e.target.value)} autoComplete="username" placeholder="ชื่อผู้ใช้งาน" /></label>
-        <label>Password><div className="password"><input required minLength={12} type={show ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} autoComplete="current-password" placeholder="รหัสผ่านอย่างน้อย 12 ตัวอักษร" /><button type="button" onClick={() => setShow(v => !v)} aria-label={show ? 'Hide password' : 'Show password'}>{show ? 'ซ่อน' : 'แสดง'}</button></div></label>
+        <label>Password<div className="password"><input required minLength={12} type={show ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} autoComplete="current-password" placeholder="รหัสผ่านอย่างน้อย 12 ตัวอักษร" /><button type="button" onClick={() => setShow(v => !v)} aria-label={show ? 'Hide password' : 'Show password'}>{show ? 'ซ่อน' : 'แสดง'}</button></div></label>
         {error && <div className="error" role="alert">{error}</div>}
         <button className="submit" disabled={loading}>{loading ? 'กำลังเข้าสู่ระบบ…' : 'เข้าสู่ระบบ'}</button>
       </form>
