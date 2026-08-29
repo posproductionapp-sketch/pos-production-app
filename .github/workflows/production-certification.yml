@@ -15,6 +15,8 @@ jobs:
   certify:
     name: Final production certification
     runs-on: ubuntu-latest
+    env:
+      CERTIFICATION_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
     services:
       postgres:
         image: postgres:16
@@ -46,8 +48,28 @@ jobs:
       APP_ENV: production
       ALLOWED_HOSTS: localhost,127.0.0.1
     steps:
-      - name: Checkout exact release commit
+      - name: Checkout exact certification commit
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.CERTIFICATION_SHA }}
+          fetch-depth: 1
+      - name: Verify exact certification SHA
+        run: |
+          ACTUAL_SHA="$(git rev-parse HEAD)"
+          test "$ACTUAL_SHA" = "$CERTIFICATION_SHA"
+          echo "Certified SHA: $ACTUAL_SHA"
+          echo "Expected SHA:  $CERTIFICATION_SHA"
+          echo "Event:         $GITHUB_EVENT_NAME"
+      - name: Write provenance evidence
+        run: |
+          {
+            echo "certified_sha=$CERTIFICATION_SHA"
+            echo "checked_out_sha=$(git rev-parse HEAD)"
+            echo "workflow_sha=$GITHUB_WORKFLOW_SHA"
+            echo "event=$GITHUB_EVENT_NAME"
+            echo "run_id=$GITHUB_RUN_ID"
+            echo "repository=$GITHUB_REPOSITORY"
+          } | tee certification-provenance.txt
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -85,7 +107,7 @@ jobs:
           AUTH_SECRET: certification-only-secret-that-is-at-least-32-characters
         run: docker compose -f compose.production.yml config --quiet
       - name: Build production container
-        run: docker build --tag pos-production-certification:${GITHUB_SHA} .
+        run: docker build --tag pos-production-certification:${CERTIFICATION_SHA} .
       - name: Start disposable production stack
         env:
           POSTGRES_PASSWORD: certification-db-password
@@ -116,16 +138,30 @@ jobs:
           POSTGRES_PASSWORD: certification-db-password
           AUTH_SECRET: certification-only-secret-that-is-at-least-32-characters
         run: docker compose -f compose.production.yml down -v
+      - name: Upload certification provenance
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: certification-provenance-${{ env.CERTIFICATION_SHA }}
+          path: certification-provenance.txt
 
   frontend:
     name: Frontend quality and behavioral certification
     runs-on: ubuntu-latest
+    env:
+      CERTIFICATION_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
     defaults:
       run:
         working-directory: frontend
     steps:
-      - name: Checkout exact release commit
+      - name: Checkout exact certification commit
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.CERTIFICATION_SHA }}
+          fetch-depth: 1
+      - name: Verify exact certification SHA
+        working-directory: .
+        run: test "$(git rev-parse HEAD)" = "$CERTIFICATION_SHA"
       - uses: actions/setup-node@v4
         with:
           node-version: '24.18.1'
@@ -143,10 +179,16 @@ jobs:
   hardware:
     name: Hardware agent certification
     runs-on: ubuntu-latest
+    env:
+      CERTIFICATION_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout exact certification commit
+        uses: actions/checkout@v4
         with:
+          ref: ${{ env.CERTIFICATION_SHA }}
           fetch-depth: 1
+      - name: Verify exact certification SHA
+        run: test "$(git rev-parse HEAD)" = "$CERTIFICATION_SHA"
       - uses: actions/setup-node@v4
         with:
           node-version: '24.18.1'
