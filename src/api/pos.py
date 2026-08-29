@@ -135,14 +135,11 @@ def build_pos_router(principal_dependency, session_dependency) -> APIRouter:
         with UnitOfWork(session):
             idem = SqlAlchemyIdempotencyRepository(session, tenant_id=current.tenant_id, store_id=current.store_id)
             try:
-                reserved = idem.reserve(operation, idempotency_key, order_id)
+                reserved, created = idem.reserve_new(operation, idempotency_key, order_id)
             except IdempotencyConflict as exc:
                 raise HTTPException(status_code=409, detail=str(exc)) from exc
-            existing_order = session.get(OrderModel, order_id)
-            if existing_order is not None:
-                return {"order_id": existing_order.id, "state": existing_order.state, "total": str(existing_order.total_amount), "currency": existing_order.currency, "duplicate": True}
-            if reserved.result_reference != order_id:
-                raise HTTPException(status_code=409, detail="Idempotency key is already bound to another result")
+            if not created:
+                return {"order_id": reserved.result_reference, "duplicate": True}
 
             catalog = CatalogRepository(session, store_id=current.store_id)
             inventory = SqlAlchemyInventoryRepository(session, store_id=current.store_id)
@@ -214,9 +211,13 @@ def build_pos_router(principal_dependency, session_dependency) -> APIRouter:
         refund_id = str(uuid5(NAMESPACE_URL, f"{current.tenant_id}:{current.store_id}:{operation}:{idempotency_key}"))
         with UnitOfWork(session):
             idem = SqlAlchemyIdempotencyRepository(session, tenant_id=current.tenant_id, store_id=current.store_id)
-            existing = idem.get(operation, idempotency_key)
-            if existing:
-                return {"refund_id": existing.result_reference, "duplicate": True}
+            try:
+                reserved, created = idem.reserve_new(operation, idempotency_key, refund_id)
+            except IdempotencyConflict as exc:
+                raise HTTPException(status_code=409, detail=str(exc)) from exc
+            if not created:
+                return {"refund_id": reserved.result_reference, "duplicate": True}
+
             payment = session.get(PaymentModel, payload.payment_id)
             if payment is None:
                 raise HTTPException(status_code=404, detail="Payment not found")
@@ -241,7 +242,6 @@ def build_pos_router(principal_dependency, session_dependency) -> APIRouter:
                 if shift is None:
                     raise HTTPException(status_code=409, detail="An open shift is required for cash refunds")
                 shift_repo.add_cash_movement(shift_id=shift.id, movement_type="refund", amount=payload.amount, reason="cash refund", actor_id=current.user_id, correlation_id=payload.correlation_id)
-            idem.reserve(operation, idempotency_key, refund_id)
             return {"refund_id": refund_id, "payment_id": payment.id, "amount": str(refund.amount), "duplicate": False}
 
     @router.post("/shifts/open")
