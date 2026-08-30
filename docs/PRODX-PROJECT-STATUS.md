@@ -2,6 +2,13 @@
 
 > Canonical working status tracker. Update this file at each milestone boundary and after material workflow changes.
 
+## Last Verified
+
+- Verification date: 2026-08-31
+- Current main after PR31: `36c4ac50f70e366dade22e6e516a7c36fbd9eefd`
+- PR31 (`docs: add PRODX project status tracker`): merged successfully.
+- This tracker is now present on `main` and is the canonical project-status record.
+
 ## Owner / Execution Model
 
 - Project Owner: repository owner
@@ -37,14 +44,25 @@ No milestone is considered complete without evidence from the applicable gates. 
 
 ## Current Repository State
 
-- PR25: merged into `main`.
-- Current known PR25 merge commit: `ac11528a`.
-- Open PRs after PR25 include workflow/agent-policy work: PR27, PR28, PR29, PR30.
-- PR27: authorizes OpenCode as a fallback implementation agent.
-- PR28: adds a guarded GitHub Actions OpenCode fallback runner.
-- PR29: documents runner access architecture.
-- PR30: documents the canonical PRODX architecture/workflow standard.
-- These policy/runner PRs are not themselves POS business-feature milestones.
+- PR25: merged into `main`; known merge commit before the status-tracker update was `ac11528a`.
+- PR31: merged into `main` as commit `36c4ac50f70e366dade22e6e516a7c36fbd9eefd`.
+- PR27: open; authorizes OpenCode as a fallback implementation agent.
+- PR28: open; adds a guarded GitHub Actions OpenCode fallback runner.
+- PR29: open; documents runner access architecture.
+- PR30: open; documents the canonical PRODX architecture/workflow standard.
+- The PR27–30 workflow/policy items are not themselves POS business-feature milestones.
+
+## Current Milestone Focus
+
+**M2/M3 verification and reconciliation** are the current feature-development focus. Before advancing to M4, the implementation present on `main` must be inspected against the POS Production Development Specification V2 and the applicable architecture/security/integrity contracts. Existing implementation must not be assumed complete solely because files or schemas exist.
+
+## Verification / Acceptance State
+
+- PR31 merge: PASS.
+- Main status-tracker presence: PASS.
+- Full automated test/CI result for the current `main`: not yet re-verified in this status update.
+- Independent OpenCode review for the current feature milestone: not yet evidenced in this status update.
+- M2/M3 acceptance: NOT COMPLETE until implementation, gates, independent review, acceptance, merge, and post-merge main verification are evidenced.
 
 ## Secret / Provider Configuration
 
