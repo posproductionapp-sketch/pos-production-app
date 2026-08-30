@@ -2,6 +2,10 @@ data "oci_identity_availability_domains" "ads" {
   compartment_id = var.compartment_ocid
 }
 
+data "oci_core_vcn" "pilot" {
+  vcn_id = var.vcn_ocid
+}
+
 data "oci_core_images" "ubuntu_arm" {
   compartment_id           = var.compartment_ocid
   operating_system         = "Canonical Ubuntu"
@@ -11,23 +15,16 @@ data "oci_core_images" "ubuntu_arm" {
   sort_order               = "DESC"
 }
 
-resource "oci_core_vcn" "pilot" {
-  compartment_id = var.compartment_ocid
-  cidr_blocks    = [var.vcn_cidr]
-  display_name   = "prodx-pilot-vcn"
-  dns_label      = "prodxpilot"
-}
-
 resource "oci_core_internet_gateway" "pilot" {
   compartment_id = var.compartment_ocid
-  vcn_id         = oci_core_vcn.pilot.id
+  vcn_id         = data.oci_core_vcn.pilot.id
   display_name   = "prodx-pilot-igw"
   enabled        = true
 }
 
 resource "oci_core_route_table" "public" {
   compartment_id = var.compartment_ocid
-  vcn_id         = oci_core_vcn.pilot.id
+  vcn_id         = data.oci_core_vcn.pilot.id
   display_name   = "prodx-pilot-public-rt"
 
   route_rules {
@@ -39,7 +36,7 @@ resource "oci_core_route_table" "public" {
 
 resource "oci_core_security_list" "public" {
   compartment_id = var.compartment_ocid
-  vcn_id         = oci_core_vcn.pilot.id
+  vcn_id         = data.oci_core_vcn.pilot.id
   display_name   = "prodx-pilot-public-security"
 
   egress_security_rules {
@@ -77,7 +74,7 @@ resource "oci_core_security_list" "public" {
 
 resource "oci_core_subnet" "public" {
   compartment_id             = var.compartment_ocid
-  vcn_id                     = oci_core_vcn.pilot.id
+  vcn_id                     = data.oci_core_vcn.pilot.id
   cidr_block                 = var.public_subnet_cidr
   display_name               = "prodx-pilot-public-subnet"
   dns_label                  = "public"
@@ -110,7 +107,7 @@ resource "oci_core_instance" "pilot" {
 
   metadata = {
     ssh_authorized_keys = var.ssh_public_key
-    user_data = base64encode(file("${path.module}/cloud-init.yaml"))
+    user_data           = base64encode(file("${path.module}/cloud-init.yaml"))
   }
 
   freeform_tags = {
