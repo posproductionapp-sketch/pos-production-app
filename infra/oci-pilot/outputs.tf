@@ -7,7 +7,7 @@ output "public_ip" {
 }
 
 output "vcn_id" {
-  value = oci_core_vcn.pilot.id
+  value = data.oci_core_vcn.pilot.id
 }
 
 output "public_subnet_id" {
