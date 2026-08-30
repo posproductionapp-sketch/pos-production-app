@@ -1,4 +1,4 @@
-name: opencode-fallback
+name: opencode-primary
 
 on:
   issue_comment:
@@ -48,7 +48,7 @@ jobs:
           fi
           printf 'prompt=%s\n' "$prompt" >> "$GITHUB_OUTPUT"
 
-      - name: Run OpenCode fallback
+      - name: Run OpenCode primary agent
         uses: anomalyco/opencode/github@latest
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -58,20 +58,21 @@ jobs:
           model: ${{ vars.OPENCODE_MODEL }}
           use_github_token: true
           prompt: |
-            You are the authorized fallback implementation agent for PRODX POS.
+            You are the PRIMARY implementation agent for PRODX POS.
 
-            Execute the requested task completely, but preserve all repository Production,
+            Execute the requested task completely. Preserve all repository Production,
             Security, Architecture, Testing, Financial Integrity, Inventory Integrity,
-            Multi-Tenant Isolation, and Merge gates. Never bypass branch protection,
-            required checks, review requirements, or secret-management rules.
+            Multi-Tenant Isolation, Idempotency, Auditability, Offline Resilience,
+            Server Authority, and Merge gates. Never bypass branch protection, required
+            checks, review requirements, or secret-management rules.
 
-            Work in a dedicated branch and create/update a PR. Run the relevant tests and
-            quality checks before reporting completion. If a required credential, external
-            service, or protected operation is unavailable, stop safely and report the
-            blocker instead of weakening a gate.
+            Work in a dedicated branch and create/update a PR. Run relevant tests and
+            quality checks before reporting completion. Diagnose and fix failures rather
+            than weakening gates. If a required credential, external service, or protected
+            operation is genuinely unavailable, stop safely and report the blocker.
 
-            Codex is the primary implementation agent. This runner is authorized as its
-            fallback only when Codex is unavailable or rate-limited.
+            OpenCode is the primary implementation path. Codex is optional secondary
+            review/analysis when available and must never block implementation progress.
 
             Requested task:
             ${{ steps.prompt.outputs.prompt }}
