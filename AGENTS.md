@@ -1,10 +1,10 @@
 # PRODX POS Agent Policy
 
-## OpenCode fallback
+## OpenCode primary
 
-OpenCode is an authorized fallback coding agent for PRODX POS when Codex is unavailable, rate-limited, or otherwise unable to execute the assigned repository work.
+OpenCode is the primary implementation agent for PRODX POS. Codex is an authorized secondary/review agent when available and useful, but Codex availability or quota must never block implementation progress.
 
-OpenCode may perform the same engineering workflow within the repository, subject to the same Production requirements:
+OpenCode may perform the full engineering workflow within the repository, subject to the same Production requirements:
 
 - Work only from the current repository state and existing project specifications.
 - Preserve Architecture, Security, Financial Integrity, Inventory Integrity, Multi-Tenant Isolation, Idempotency, Auditability, Offline Resilience, and Server Authority requirements.
@@ -15,20 +15,22 @@ OpenCode may perform the same engineering workflow within the repository, subjec
 - Do not bypass branch protection, required reviews, or merge gates.
 - Treat CI failures as blocking until diagnosed and fixed or explicitly documented as an external blocker.
 - Do not declare a milestone complete without evidence from the relevant verification gates.
-- When Codex becomes available again, OpenCode work remains subject to the same review and acceptance gates; Codex does not need to overwrite valid OpenCode work.
+- Codex review is supplemental and must not be treated as a prerequisite when unavailable or rate-limited; the same mandatory automated gates and independent review policy still apply.
 
 ## Authority model
 
-This file authorizes OpenCode as a fallback implementation agent. It does not grant credentials or bypass GitHub/OCI permissions. Provider authentication and local execution permissions remain controlled by the environment.
+This file authorizes OpenCode as the primary implementation agent. It does not grant credentials or bypass GitHub/OCI permissions. Provider authentication and execution permissions remain controlled by the environment.
 
 ## Preferred execution model
 
-Use OpenCode's full-access build agent only inside the PRODX repository, with repository permissions required for the assigned task. Use plan/read-only mode for investigation when implementation authority is not needed.
+Use OpenCode's full-access build agent for implementation and repository maintenance. Use plan/read-only mode for investigation when implementation authority is not needed. Use Codex as a secondary review/analysis agent when available, without making it a single point of failure.
 
-The fallback relationship is:
+The execution relationship is:
 
-`Codex available -> Codex primary`
+`OpenCode available -> OpenCode primary`
 
-`Codex unavailable/limited -> OpenCode fallback`
+`Codex available -> secondary review/analysis`
 
-`Both available -> either may execute, but all changes use the same Production Gates and review policy.`
+`Codex unavailable/limited -> continue with OpenCode`
+
+`All work -> same Production Gates and review policy.`
