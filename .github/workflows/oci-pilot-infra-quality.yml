@@ -8,6 +8,7 @@ on:
   push:
     branches:
       - main
+      - infra/prodx-pilot-terraform
     paths:
       - "infra/oci-pilot/**"
       - ".github/workflows/oci-pilot-infra-quality.yml"
