@@ -1,41 +1,24 @@
-variable "tenancy_ocid" {
-  type      = string
-  sensitive = true
-}
-
-variable "user_ocid" {
-  type      = string
-  sensitive = true
-}
-
-variable "fingerprint" {
-  type      = string
-  sensitive = true
-}
-
-variable "private_key_path" {
-  type      = string
-  sensitive = true
-}
-
 variable "region" {
   type    = string
   default = "ap-singapore-1"
 }
 
 variable "compartment_ocid" {
-  type      = string
-  sensitive = true
+  type        = string
+  description = "OCI compartment OCID where the Pilot resources will be created."
+  sensitive   = true
+}
+
+variable "vcn_ocid" {
+  type        = string
+  description = "OCID of the existing manually-created prodx-pilot-vcn."
+  sensitive   = true
 }
 
 variable "ssh_public_key" {
-  type      = string
-  sensitive = true
-}
-
-variable "vcn_cidr" {
-  type    = string
-  default = "10.0.0.0/16"
+  type        = string
+  description = "SSH public key installed on the Pilot VM."
+  sensitive   = true
 }
 
 variable "public_subnet_cidr" {
