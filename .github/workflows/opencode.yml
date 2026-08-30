@@ -1,0 +1,78 @@
+name: opencode-primary
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      prompt:
+        description: Task for OpenCode
+        required: true
+        type: string
+
+jobs:
+  opencode:
+    if: >-
+      (github.event_name == 'workflow_dispatch') ||
+      (
+        (contains(github.event.comment.body, '/opencode') || contains(github.event.comment.body, '/oc')) &&
+        (github.event.comment.author_association == 'OWNER' ||
+         github.event.comment.author_association == 'MEMBER' ||
+         github.event.comment.author_association == 'COLLABORATOR')
+      )
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Resolve prompt
+        id: prompt
+        env:
+          COMMENT_BODY: ${{ github.event.comment.body || '' }}
+          DISPATCH_PROMPT: ${{ inputs.prompt || '' }}
+        run: |
+          set -euo pipefail
+          prompt="$DISPATCH_PROMPT"
+          if [ -z "$prompt" ]; then
+            prompt="$COMMENT_BODY"
+          fi
+          printf 'prompt=%s\n' "$prompt" >> "$GITHUB_OUTPUT"
+
+      - name: Run OpenCode primary agent
+        uses: anomalyco/opencode/github@latest
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        with:
+          model: ${{ vars.OPENCODE_MODEL }}
+          use_github_token: true
+          prompt: |
+            You are the PRIMARY implementation agent for PRODX POS.
+
+            Execute the requested task completely. Preserve all repository Production,
+            Security, Architecture, Testing, Financial Integrity, Inventory Integrity,
+            Multi-Tenant Isolation, Idempotency, Auditability, Offline Resilience,
+            Server Authority, and Merge gates. Never bypass branch protection, required
+            checks, review requirements, or secret-management rules.
+
+            Work in a dedicated branch and create/update a PR. Run relevant tests and
+            quality checks before reporting completion. Diagnose and fix failures rather
+            than weakening gates. If a required credential, external service, or protected
+            operation is genuinely unavailable, stop safely and report the blocker.
+
+            OpenCode is the primary implementation path. Codex is optional secondary
+            review/analysis when available and must never block implementation progress.
+
+            Requested task:
+            ${{ steps.prompt.outputs.prompt }}
