@@ -54,9 +54,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         with:
-          # Use Anthropic instead of the exhausted OpenAI API balance.
-          # Keep OPENCODE_MODEL as an optional override when explicitly configured.
-          model: ${{ vars.OPENCODE_MODEL || 'anthropic/claude-sonnet-4-20250514' }}
+          # Pin OpenCode to Anthropic so an OpenAI model cannot be selected accidentally.
+          model: anthropic/claude-sonnet-4-20250514
           use_github_token: true
           prompt: |
             You are the PRIMARY implementation agent for PRODX POS.
