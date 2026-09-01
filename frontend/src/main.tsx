@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { createRoot } from 'react-dom/client';
 import './styles.css';
 import { buildSalePayload, canAddToCart, cartSubtotal } from './pos_logic';
 
@@ -139,7 +140,7 @@ function Sales({ session, onLogout }: { session: Session; onLogout: () => void }
     finally { setCheckoutLoading(false); }
   }
 
-  return <main className="dashboard"><header className="topbar"><Logo /><div className="top-actions"><span className={shift?.state === 'open' ? 'online' : 'error'}><i /> {shift?.state === 'open' ? 'Shift Open' : 'Shift Closed'}</span><span className="store" aria-label="Current store">{session.store_id}</span><span className="store" aria-label="Current role">{session.roles.join(', ')}</span><button onClick={onLogout}>ออกจากระบบ</button></div></header><div className="dashboard-layout"><aside className="sidebar"><nav aria-label="Primary navigation">{visibleNav.map((item, i) => <span className={item.label.includes('Sales') ? 'nav-item nav-active' : 'nav-item'} aria-current={item.label.includes('Sales') ? 'page' : undefined} key={item.label}>{item.label}</span>)}</nav></aside><section className="dash-content sales-view"><div className="dash-head"><div><span className="eyebrow">SALES • POS COUNTER</span><h1>หน้าขาย</h1><p>เลือกสินค้าเพื่อเริ่มรายการ</p></div><div className="stat"><span>ยอดรายการนี้</span><strong>฿{subtotal.toFixed(2)}</strong></div></div>
+  return <main className="dashboard"><header className="topbar"><Logo /><div className="top-actions"><span className={shift?.state === 'open' ? 'online' : 'error'}><i /> {shift?.state === 'open' ? 'Shift Open' : 'Shift Closed'}</span><span className="store" aria-label="Current store">{session.store_id}</span><span className="store" aria-label="Current role">{session.roles.join(', ')}</span><button onClick={onLogout}>ออกจากระบบ</button></div></header><div className="dashboard-layout"><aside className="sidebar"><nav aria-label="Primary navigation">{visibleNav.map((item) => <span className={item.label.includes('Sales') ? 'nav-item nav-active' : 'nav-item'} aria-current={item.label.includes('Sales') ? 'page' : undefined} key={item.label}>{item.label}</span>)}</nav></aside><section className="dash-content sales-view"><div className="dash-head"><div><span className="eyebrow">SALES • POS COUNTER</span><h1>หน้าขาย</h1><p>เลือกสินค้าเพื่อเริ่มรายการ</p></div><div className="stat"><span>ยอดรายการนี้</span><strong>฿{subtotal.toFixed(2)}</strong></div></div>
     {loading && <div className="loading" role="status">กำลังโหลดสินค้า…</div>}
     {error && <div className="error" role="alert">{error}</div>}
     {success && <div className="success" role="status">ชำระเงินสำเร็จ · Order {success.order_id} · ฿{success.total}</div>}
