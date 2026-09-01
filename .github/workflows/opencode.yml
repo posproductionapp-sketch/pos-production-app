@@ -52,10 +52,10 @@ jobs:
         uses: anomalyco/opencode/github@latest
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         with:
-          # Pin OpenCode to Anthropic so an OpenAI model cannot be selected accidentally.
-          model: anthropic/claude-sonnet-4-20250514
+          # Use OpenAI's current frontier agentic coding model for repository review and implementation.
+          model: openai/gpt-5.3-codex
           use_github_token: true
           prompt: |
             You are the PRIMARY implementation agent for PRODX POS.
