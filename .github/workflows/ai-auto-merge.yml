@@ -8,7 +8,8 @@ jobs:
   enable-auto-merge:
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
-      startsWith(github.event.pull_request.head.ref, 'ai/')
+      (startsWith(github.event.pull_request.head.ref, 'ai/') ||
+       startsWith(github.event.pull_request.head.ref, 'codex/'))
     runs-on: ubuntu-latest
     permissions:
       contents: write
