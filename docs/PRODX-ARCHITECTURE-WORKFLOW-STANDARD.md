@@ -42,17 +42,19 @@ Every capability or milestone follows the same gate sequence:
 1. **Architecture Gate** — confirm the change respects approved boundaries and domain contracts.
 2. **Implementation Gate** — implement only within the approved capability scope.
 3. **Automated Quality Gates** — compile/type checks, lint/static checks where applicable, unit/integration tests, migration checks, security/architecture contracts, and relevant frontend/backend certification.
-4. **GPT Technical Review** — inspect correctness, architecture, security, data integrity, and regression risk.
-5. **Independent Review** — use Codex when available; otherwise use the approved independent reviewer/tool fallback according to Risk Tier.
+4. **AI Technical Review** — the connected ChatGPT/GitHub development AI inspects the actual diff and relevant repository context for correctness, architecture, security, integrity, regression risk, and test sufficiency.
+5. **AI Review Evidence Gate** — the AI review result is recorded in repository-visible PR evidence. Human code review is not a mandatory control for ordinary engineering changes.
 6. **Milestone Acceptance Gate** — verify Definition of Done and all required evidence before merge.
-7. **Merge Gate** — merge only when required reviews and CI checks are green; never bypass branch protection or failed required checks.
+7. **Merge Gate** — merge only when the required automated gates and AI review evidence are green; never bypass branch protection or failed required checks.
 8. **Main Verification** — after merge, verify the resulting main branch and production-relevant checks again.
 
 ## 5. Risk and Review Rules
 
-- High-risk changes require independent review and stronger evidence before acceptance.
+- AI technical review is mandatory for ordinary engineering changes.
+- High-risk changes require deeper AI analysis and stronger automated evidence before acceptance.
 - Database, authentication/authorization, financial, inventory, offline synchronization, infrastructure, and deployment changes are treated as high-impact areas unless explicitly classified otherwise.
-- A reviewer or implementation agent being unavailable does not justify weakening a gate. Use the approved fallback path while preserving the same standards.
+- Human code review is not required for ordinary changes under the approved AI-only review policy. Owner involvement remains limited to business decisions, protected approvals, credentials genuinely required by deployment infrastructure, and operations unavailable to execution agents.
+- Unavailable AI review capability blocks acceptance; it must not be replaced by a weaker human or ad-hoc review path.
 - Credentials, private keys, passwords, tokens, and other secrets must never be committed to source control.
 
 ## 6. Database and Migration Rules
@@ -82,7 +84,7 @@ A capability is not complete merely because the implementation exists. It is com
 - relevant automated tests pass;
 - database migrations and integration tests pass where applicable;
 - security and tenant-isolation checks pass;
-- required technical and independent reviews pass;
+- required AI technical review and repository-visible review evidence pass;
 - no required gate is bypassed or weakened;
 - milestone acceptance criteria are satisfied; and
 - post-merge/main verification is successful.
