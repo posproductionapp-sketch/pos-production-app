@@ -4,23 +4,21 @@
 
 ## Last Verified
 
-- Verification date: 2026-08-31
-- Current main after PR31: `36c4ac50f70e366dade22e6e516a7c36fbd9eefd`
-- PR31 (`docs: add PRODX project status tracker`): merged successfully.
-- This tracker is now present on `main` and is the canonical project-status record.
+- Verification date: 2026-09-02
+- OpenAI API is intentionally **not required** for core development or CI.
+- OpenCode autonomous workflow was removed from `main` because it required `OPENAI_API_KEY` and could block development when provider quota was exhausted.
 
 ## Owner / Execution Model
 
 - Project Owner: repository owner
 - Technical Lead / Executor: ChatGPT
-- Primary coding agent: Codex
-- Fallback coding agent: OpenCode when Codex is unavailable or rate-limited
-- OpenCode work must receive independent review before a milestone is accepted.
+- Primary coding agent: Codex when available
+- AI coding providers are optional development assistants, never a dependency of the POS runtime or core quality gates.
 - Owner-only actions are limited to credentials, protected approvals, and operations unavailable to the execution agents.
 
 ## Approved Engineering Workflow
 
-`Plan → Implement → Automated Tests → Architecture/Security/Integrity Gates → Independent Review (OpenCode/Codex) → Fix findings → Acceptance → Merge → Main Verification → Next Milestone`
+`Plan → Implement → Automated Tests → Architecture/Security/Integrity Gates → Independent Review when available → Fix findings → Acceptance → Merge → Main Verification → Next Milestone`
 
 No milestone is considered complete without evidence from the applicable gates. Gates must not be weakened or bypassed.
 
@@ -42,37 +40,27 @@ No milestone is considered complete without evidence from the applicable gates. 
 | M11 | Production Hardening | Planned |
 | M12 | Production Deployment | Planned |
 
-## Current Repository State
-
-- PR25: merged into `main`; known merge commit before the status-tracker update was `ac11528a`.
-- PR31: merged into `main` as commit `36c4ac50f70e366dade22e6e516a7c36fbd9eefd`.
-- PR27: open; authorizes OpenCode as a fallback implementation agent.
-- PR28: open; adds a guarded GitHub Actions OpenCode fallback runner.
-- PR29: open; documents runner access architecture.
-- PR30: open; documents the canonical PRODX architecture/workflow standard.
-- The PR27–30 workflow/policy items are not themselves POS business-feature milestones.
-
 ## Current Milestone Focus
 
-**M2/M3 verification and reconciliation** are the current feature-development focus. Before advancing to M4, the implementation present on `main` must be inspected against the POS Production Development Specification V2 and the applicable architecture/security/integrity contracts. Existing implementation must not be assumed complete solely because files or schemas exist.
+**M2/M3 verification and reconciliation** remain the current feature-development focus. Before advancing to M4, the implementation present on `main` must be inspected against the POS Production Development Specification V2 and the applicable architecture/security/integrity contracts. Existing implementation must not be assumed complete solely because files or schemas exist.
 
 ## Verification / Acceptance State
 
-- PR31 merge: PASS.
-- Main status-tracker presence: PASS.
-- Full automated test/CI result for the current `main`: not yet re-verified in this status update.
-- Independent OpenCode review for the current feature milestone: not yet evidenced in this status update.
-- M2/M3 acceptance: NOT COMPLETE until implementation, gates, independent review, acceptance, merge, and post-merge main verification are evidenced.
+- Core development must remain runnable without OpenAI API credentials.
+- AI provider availability must not determine whether application tests or core CI can execute.
+- Full automated test/CI result for the post-change `main`: pending verification by GitHub Actions.
+- M2/M3 acceptance: NOT COMPLETE until implementation, gates, independent review when required by risk tier, acceptance, merge, and post-merge main verification are evidenced.
 
 ## Secret / Provider Configuration
 
-- `OPENAI_API_KEY`: expected to be supplied through GitHub Actions secrets/environment only.
-- `ANTHROPIC_API_KEY`: expected to be supplied through GitHub Actions secrets/environment only.
+- `OPENAI_API_KEY`: optional provider credential only; not required by the core application or core development workflow.
+- `ANTHROPIC_API_KEY`: optional provider credential only; not required by the core application or core development workflow.
 - Provider credentials must never be committed to the repository.
+- If an external AI provider is reintroduced later, it must be isolated behind an optional integration boundary and must not become a required application/CI dependency.
 
 ## Completion Rule
 
-A milestone may be marked complete only when implementation, relevant tests, production/security/architecture gates, independent OpenCode/Codex review, acceptance, merge, and post-merge main verification all pass.
+A milestone may be marked complete only when implementation, relevant tests, production/security/architecture gates, independent review when required by risk tier, acceptance, merge, and post-merge main verification all pass.
 
 ## Update Discipline
 
