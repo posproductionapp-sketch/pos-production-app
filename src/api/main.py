@@ -23,8 +23,58 @@ _settings = load_settings()
 if _settings.environment == "production":
     _settings.validate_runtime()
 _docs_enabled = _settings.environment != "production"
+app = FastAPI(
+    title="POS Production API",
+    version="0.3.0",
+    docs_url="/docs" if _docs_enabled else None,
+    redoc_url="/redoc" if _docs_enabled else None,
+    openapi_url="/openapi.json" if _docs_enabled else None,
+)
+app.add_middleware(RequestBodyLimitMiddleware, max_body_size=_settings.max_request_body_bytes)
+if _settings.environment == "production":
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=list(_settings.allowed_hosts), www_redirect=False)
+_engine = None
+_SessionLocal = None
 
-app = FastAPI(docs_url="/docs" if _docs_enabled else None, redoc_url="/redoc" if _docs_enabled else None)
+
+@app.middleware("http")
+async def production_headers(request: Request, call_next):
+    request_id = request.headers.get("X-Request-ID") or str(uuid4())
+    started = time.perf_counter()
+    try:
+        response: Response = await call_next(request)
+    except Exception:
+        duration_ms = (time.perf_counter() - started) * 1000
+        metrics.observe(method=request.method, path=request.url.path, status=500, duration_ms=duration_ms)
+        raise
+    duration_ms = (time.perf_counter() - started) * 1000
+    metrics.observe(method=request.method, path=request.url.path, status=response.status_code, duration_ms=duration_ms)
+    response.headers["X-Request-ID"] = request_id
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    response.headers["Cache-Control"] = "no-store" if request.url.path.startswith("/v1/") else "no-cache"
+    if request.url.scheme == "https" or _settings.environment == "production":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    return response
+
+
+def get_session():
+    global _engine, _SessionLocal
+    _settings.validate_runtime()
+    if _SessionLocal is None:
+        _engine = create_engine_from_env()
+        _SessionLocal = session_factory(_engine)
+    with _SessionLocal() as session:
+        try:
+            yield session
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            if session.in_transaction():
+                session.rollback()
 
 
 class LoginRequest(BaseModel):
@@ -35,6 +85,7 @@ class LoginRequest(BaseModel):
 
 class LoginResponse(BaseModel):
     access_token: str
+    token_type: str = "bearer"
 
 
 class SyncRequest(BaseModel):
@@ -43,23 +94,13 @@ class SyncRequest(BaseModel):
     payload: dict = Field(default_factory=dict)
 
 
-def get_session():
-    session = session_factory()
+def principal(authorization: str = Header(default=""), session: Session = Depends(get_session)):
+    if not authorization.lower().startswith("bearer "):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Bearer token required")
     try:
-        yield session
-    finally:
-        session.close()
-
-
-def principal(request: Request, session: Session = Depends(get_session)):
-    from src.infrastructure.database.auth import Principal
-    authorization = request.headers.get("Authorization", "")
-    if not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing bearer token")
-    try:
-        return Principal.from_token(authorization.removeprefix("Bearer ").strip(), _settings.auth_secret, session)
-    except (AuthenticationError, ValueError):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+        return AuthService(session, load_settings().auth_secret).authenticate(authorization[7:].strip())
+    except (AuthenticationError, ValueError) as exc:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid authentication") from exc
 
 
 @app.get("/health")
