@@ -4,7 +4,7 @@
 
 ChatGPT through the connected GitHub workflow is the primary development interface for PRODX POS. The Project Owner issues natural-language commands through the connector; the AI execution workflow is responsible for repository inspection, implementation, testing, quality gates, review coordination, and reporting.
 
-The PRODX POS repository must not require or invoke an OpenAI Platform API key for application runtime, CI, tests, or the core development workflow. No `OPENAI_API_KEY` dependency may be introduced. GPT/connector authentication is external to the application repository and must not be implemented as an application credential.
+The PRODX POS repository must not require or invoke an OpenAI Platform API key for application runtime, CI, tests, or the core development workflow. No OpenAI Platform API-key environment-variable dependency may be introduced. GPT/connector authentication is external to the application repository and must not be implemented as an application credential.
 
 The AI execution workflow may perform the full engineering workflow within the repository, subject to the same Production requirements:
 
