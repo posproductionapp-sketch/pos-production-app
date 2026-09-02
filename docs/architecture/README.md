@@ -41,6 +41,6 @@ Database Phase may implement `src/infrastructure/database/` and migrations witho
 
 The approved development model is:
 
-`Project Owner command → ChatGPT/GitHub connector → repository → automated gates → review → acceptance → merge → main verification`
+`Project Owner command → ChatGPT/GitHub connector → repository → automated gates → AI technical review → acceptance → merge → main verification`
 
-This development-plane connector is not an application dependency. PRODX POS must remain fully buildable, testable, and runnable without an OpenAI Platform API credential.
+The AI technical review is performed by the connected development AI against the actual change and repository context. Human code review is not a mandatory engineering control for ordinary changes. This development-plane connector is not an application dependency. PRODX POS must remain fully buildable, testable, and runnable without an OpenAI Platform API credential.
