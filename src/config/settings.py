@@ -1,6 +1,7 @@
 """Environment-driven application configuration.
 
 Secrets are loaded from environment/deployment secret storage only.
+AI/provider integrations are optional and must not be required by core POS runtime.
 """
 
 from dataclasses import dataclass
@@ -14,7 +15,6 @@ class Settings:
     database_url: str
     auth_secret: str
     redis_url: str = ""
-    openai_api_key: str | None = None
     allowed_hosts: tuple[str, ...] = ()
     max_request_body_bytes: int = 2 * 1024 * 1024
     vat_rate: Decimal = Decimal("0")
@@ -68,7 +68,6 @@ def load_settings() -> Settings:
         database_url=database_url,
         auth_secret=auth_secret,
         redis_url=redis_url,
-        openai_api_key=os.getenv("OPENAI_API_KEY"),
         allowed_hosts=allowed_hosts,
         max_request_body_bytes=max_request_body_bytes,
         vat_rate=_decimal_env("VAT_RATE", "0"),
