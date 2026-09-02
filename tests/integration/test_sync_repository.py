@@ -20,7 +20,9 @@ def session_factory() -> Session:
 
 def test_duplicate_command_is_durable_and_does_not_replace_payload() -> None:
     session = session_factory()
-    repository = SqlAlchemySyncRepository(session, tenant_id="tenant-a", store_id="store-a")
+    repository = SqlAlchemySyncRepository(
+        session, tenant_id="tenant-a", store_id="store-a", actor_id="actor-a"
+    )
 
     first = repository.record_received(
         command_id="cmd-1",
@@ -42,7 +44,9 @@ def test_duplicate_command_is_durable_and_does_not_replace_payload() -> None:
 
 def test_completion_is_idempotent_and_persists_authoritative_result() -> None:
     session = session_factory()
-    repository = SqlAlchemySyncRepository(session, tenant_id="tenant-a", store_id="store-a")
+    repository = SqlAlchemySyncRepository(
+        session, tenant_id="tenant-a", store_id="store-a", actor_id="actor-a"
+    )
     repository.record_received(command_id="cmd-2", operation="sale", payload={"order": "o-2"})
     session.commit()
 
@@ -57,7 +61,9 @@ def test_completion_is_idempotent_and_persists_authoritative_result() -> None:
 
 def test_failed_command_retains_error_and_is_not_overwritten_after_completion() -> None:
     session = session_factory()
-    repository = SqlAlchemySyncRepository(session, tenant_id="tenant-a", store_id="store-a")
+    repository = SqlAlchemySyncRepository(
+        session, tenant_id="tenant-a", store_id="store-a", actor_id="actor-a"
+    )
     repository.record_received(command_id="cmd-3", operation="sale", payload={"order": "o-3"})
     session.commit()
 
@@ -72,9 +78,15 @@ def test_failed_command_retains_error_and_is_not_overwritten_after_completion() 
 
 def test_command_scope_isolated_by_tenant_and_store() -> None:
     session = session_factory()
-    tenant_a = SqlAlchemySyncRepository(session, tenant_id="tenant-a", store_id="store-a")
-    tenant_b = SqlAlchemySyncRepository(session, tenant_id="tenant-b", store_id="store-a")
-    store_b = SqlAlchemySyncRepository(session, tenant_id="tenant-a", store_id="store-b")
+    tenant_a = SqlAlchemySyncRepository(
+        session, tenant_id="tenant-a", store_id="store-a", actor_id="actor-a"
+    )
+    tenant_b = SqlAlchemySyncRepository(
+        session, tenant_id="tenant-b", store_id="store-a", actor_id="actor-a"
+    )
+    store_b = SqlAlchemySyncRepository(
+        session, tenant_id="tenant-a", store_id="store-b", actor_id="actor-a"
+    )
 
     tenant_a.record_received(command_id="shared-id", operation="sale", payload={"owner": "a"})
     session.commit()
