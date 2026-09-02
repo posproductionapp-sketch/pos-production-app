@@ -6,7 +6,7 @@
 
 ## 1. Purpose
 
-This document defines the minimum authoritative contract required before the frontend persists and replays offline POS mutations. It prevents the client from inventing synchronization semantics and preserves the existing server-authority, idempotency, financial-integrity, inventory-integrity, and tenant-isolation requirements.
+This document defines the minimum authoritative contract required before the frontend persists and replays offline POS mutations. It prevents the client from inventing synchronization semantics and preserves the existing server-authority, idempotency, financial-integrity, inventory-integrity, auditability, and tenant-isolation requirements.
 
 ## 2. Non-negotiable rules
 
@@ -20,6 +20,8 @@ This document defines the minimum authoritative contract required before the fro
 8. Tenant and store identity are validated by the server from authenticated context and request data; the client cannot use offline state to bypass authorization.
 9. Server-side idempotency must prevent duplicate financial or inventory effects when the same command is replayed.
 10. Offline synchronization must not silently overwrite a newer authoritative server state.
+11. An outbox command is bound to the originating authenticated principal. A command queued by one user must not be automatically replayed under another user, tenant, or store context.
+12. A command claimed for sending must have a recoverable lease/claim timestamp. Startup or reconnect recovery must requeue stale `SENDING` commands with the original `command_id` rather than leaving them stranded.
 
 ## 3. Command lifecycle
 
@@ -33,6 +35,8 @@ CREATED → PENDING → SENDING → ACKED
 
 The local outbox is durable and ordered. `command_id` remains immutable throughout the lifecycle.
 
+`SENDING` is a recoverable transient state, not a terminal state. A replay worker must atomically claim a pending command with a lease (or equivalent compare-and-set mechanism). If the lease expires without an authoritative result, recovery returns the command to `PENDING` and retries it with the same `command_id` and exact logical payload.
+
 ## 4. Required command envelope
 
 The client outbox record must contain at minimum:
@@ -44,18 +48,25 @@ The client outbox record must contain at minimum:
 - `attempt_count`: retry telemetry.
 - `status`: lifecycle state above.
 - `last_error`: sanitized, non-secret failure information when applicable.
-- `tenant_id` / `store_id`: only where required by the API contract; server authorization remains authoritative.
+- `tenant_id` / `store_id`: originating scope when required by the API contract.
+- `principal_id`: originating authenticated user/principal identifier required to prevent cross-user replay on shared terminals.
+- `lease_expires_at` (or equivalent): recovery metadata for commands in `SENDING`.
+
+The principal and scope metadata are authorization guards, not substitutes for server-side authentication. The client must not treat stored principal data as proof of identity.
 
 ## 5. Replay semantics
 
 Replay must be deterministic:
 
-1. Read the next pending command.
-2. Send the exact same logical payload with the same `command_id`.
-3. On authoritative success, mark the command `ACKED` and persist the returned server reference.
-4. On transient transport/server failure, retain the command and retry with bounded backoff.
-5. On a permanent business/authorization failure, mark `FAILED` and surface it for operator resolution.
-6. Never acknowledge solely because the HTTP request was dispatched; acknowledgement requires an authoritative server response.
+1. Read the next eligible `PENDING` command for the currently authenticated principal and matching tenant/store scope.
+2. Atomically claim it as `SENDING` with a bounded lease before dispatch.
+3. Send the exact same logical payload with the same `command_id`.
+4. On authoritative success, mark the command `ACKED` and persist the returned server reference.
+5. On transient transport/server failure, retain the command, clear/expire its sending lease, return it to `PENDING`, and retry with bounded backoff.
+6. On a permanent business/authorization failure, mark `FAILED` and surface it for operator resolution.
+7. On startup/reconnect, requeue any expired `SENDING` lease before selecting new work.
+8. If the current authenticated principal, tenant, or store differs from the command's originating scope, do not automatically replay it. Hold it for explicit operator resolution or re-authentication under the original principal as permitted by product policy.
+9. Never acknowledge solely because the HTTP request was dispatched; acknowledgement requires an authoritative server response containing the durable business result.
 
 ## 6. Conflict policy
 
@@ -76,11 +87,15 @@ The reconciliation UI may explain the outcome and offer a permitted corrective a
 - Bearer access tokens must not be persisted in the offline outbox.
 - Offline payloads must not contain passwords, refresh secrets, private keys, or other credentials.
 - Replayed requests must be re-authenticated using the current valid session.
+- The originating principal/scope metadata must be checked before automatic replay; a different authenticated user must not inherit another user's queued financial action.
 - If the session is expired, the outbox remains durable and waits for successful re-authentication rather than dropping commands.
+- Explicit operator resolution of a command belonging to another principal must require a product-supported authorization flow; merely logging in as another user is not sufficient.
 
 ## 8. Current implementation boundary
 
 The repository already contains a deterministic server-side/application replay primitive in `src/app/offline_sync.py` and durable idempotency infrastructure. The frontend IndexedDB schema and service-worker integration must be implemented only after endpoint-level request/response and error classifications are verified against the backend API.
+
+The repository also exposes `POST /v1/sync/commands`, but its current intake semantics are not an authoritative mutation replay contract: it records receipt and returns a `received` state rather than atomically dispatching the requested business operation and returning that operation's durable business result. The frontend must therefore **not** treat a successful sync-intake response as `ACKED` for a sale, refund, inventory, or shift mutation until the endpoint is explicitly upgraded and covered by integration tests.
 
 This contract therefore authorizes the **shape and safety rules of synchronization**, but does **not** invent a new HTTP sync endpoint. Endpoint implementation must follow the existing API architecture and be covered by integration tests before frontend offline persistence is enabled.
 
@@ -89,7 +104,10 @@ This contract therefore authorizes the **shape and safety rules of synchronizati
 - [ ] Identify every POS mutation that must be offline-capable.
 - [ ] Verify request/response/error contracts for each mutation.
 - [ ] Verify durable server-side idempotency behavior for replayed commands.
-- [ ] Add integration tests for duplicate replay, retryable failure, and permanent failure.
+- [ ] Define and test atomic outbox claim/lease and stale `SENDING` recovery.
+- [ ] Define and test originating principal/tenant/store binding for replay.
+- [ ] Explicitly verify that `/v1/sync/commands` is not treated as mutation acknowledgement until it returns an authoritative business result.
+- [ ] Add integration tests for duplicate replay, retryable failure, permanent failure, and interrupted-send recovery.
 - [ ] Add the frontend IndexedDB outbox only after the above contracts are green.
 - [ ] Add browser E2E for offline → reconnect → authoritative acknowledgement.
 
