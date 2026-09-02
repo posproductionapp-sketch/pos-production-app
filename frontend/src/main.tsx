@@ -9,6 +9,7 @@ const TOKEN_KEY = 'prodx_access_token';
 type Product = { variant_id: string; sku: string; name: string; description: string; price: string; currency: string; stock: number };
 type SaleResult = { order_id: string; payment_id: string; subtotal: string; discount: string; tax: string; total: string; currency: string };
 type Shift = { shift_id: string; state: 'open' | 'closed'; opening_cash: string };
+type Session = { user_id: string; tenant_id: string; store_id: string; roles: string[] };
 
 async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = sessionStorage.getItem(TOKEN_KEY);
@@ -31,7 +32,7 @@ function Logo({ compact = false }: { compact?: boolean }) {
   </div>;
 }
 
-function Login({ onLogin }: { onLogin: () => void }) {
+function Login({ onLogin }: { onLogin: (session: Session) => void }) {
   const [tenantId, setTenantId] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -44,9 +45,12 @@ function Login({ onLogin }: { onLogin: () => void }) {
     e.preventDefault(); setError(''); setLoading(true);
     try {
       const data = await api<{ access_token: string }>('/v1/auth/login', { method: 'POST', body: JSON.stringify({ tenant_id: tenantId, username, password }) });
-      sessionStorage.setItem(TOKEN_KEY, data.access_token); onLogin();
-    } catch (err) { setError(err instanceof Error ? err.message : 'เข้าสู่ระบบไม่สำเร็จ'); }
-    finally { setLoading(false); }
+      sessionStorage.setItem(TOKEN_KEY, data.access_token);
+      onLogin(await api<Session>('/v1/me'));
+    } catch (err) {
+      sessionStorage.removeItem(TOKEN_KEY);
+      setError(err instanceof Error ? err.message : 'เข้าสู่ระบบไม่สำเร็จ');
+    } finally { setLoading(false); }
   }
 
   return <main className={dark ? 'app dark' : 'app'}>
@@ -70,7 +74,18 @@ function Login({ onLogin }: { onLogin: () => void }) {
   </main>;
 }
 
-function Sales({ onLogout }: { onLogout: () => void }) {
+const NAV_ITEMS = [
+  { label: '⌂ Dashboard', roles: ['admin', 'manager'] },
+  { label: '▣ Sales', roles: ['admin', 'manager', 'cashier'] },
+  { label: '◈ Products', roles: ['admin', 'manager'] },
+  { label: '◫ Inventory', roles: ['admin', 'manager', 'cashier'] },
+  { label: '♙ Customers', roles: ['admin', 'manager', 'cashier'] },
+  { label: '⌁ Reports', roles: ['admin', 'manager'] },
+  { label: '◉ Cash & Shift', roles: ['admin', 'manager', 'cashier'] },
+  { label: '⚙ Settings', roles: ['admin'] },
+] as const;
+
+function Sales({ session, onLogout }: { session: Session; onLogout: () => void }) {
   const [query, setQuery] = useState('');
   const [products, setProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<Record<string, number>>({});
@@ -100,6 +115,7 @@ function Sales({ onLogout }: { onLogout: () => void }) {
   const cartItems = products.filter(p => (cart[p.variant_id] ?? 0) > 0);
   const subtotal = cartSubtotal(cartItems.map(p => ({ price: p.price, quantity: cart[p.variant_id] ?? 0 })));
   const cartCount = Object.values(cart).reduce((sum, quantity) => sum + quantity, 0);
+  const visibleNav = NAV_ITEMS.filter(item => item.roles.some(role => session.roles.includes(role)));
 
   function addToCart(product: Product) {
     const quantity = cart[product.variant_id] ?? 0;
@@ -124,12 +140,29 @@ function Sales({ onLogout }: { onLogout: () => void }) {
     finally { setCheckoutLoading(false); }
   }
 
-  return <main className="dashboard"><header className="topbar"><Logo /><div className="top-actions"><span className={shift?.state === 'open' ? 'online' : 'error'}><i /> {shift?.state === 'open' ? 'Shift Open' : 'Shift Closed'}</span><span className="store" aria-label="Current store">Store</span><button onClick={onLogout}>ออกจากระบบ</button></div></header><div className="dashboard-layout"><aside className="sidebar"><nav aria-label="Primary navigation">{['⌂ Dashboard','▣ Sales','◈ Products','◫ Inventory','♙ Customers','⌁ Reports','◉ Cash & Shift','⚙ Settings'].map((label, i) => <span className={i === 1 ? 'nav-item nav-active' : 'nav-item nav-disabled'} aria-current={i === 1 ? 'page' : undefined} aria-disabled={i === 1 ? undefined : true} key={label}>{label}</span>)}</nav></aside><section className="dash-content sales-view"><div className="dash-head"><div><span className="eyebrow">SALES • POS COUNTER</span><h1>หน้าขาย</h1><p>เลือกสินค้าเพื่อเริ่มรายการ</p></div><div className="stat"><span>ยอดรายการนี้</span><strong>฿{subtotal.toFixed(2)}</strong></div></div>
+  return <main className="dashboard"><header className="topbar"><Logo /><div className="top-actions"><span className={shift?.state === 'open' ? 'online' : 'error'}><i /> {shift?.state === 'open' ? 'Shift Open' : 'Shift Closed'}</span><span className="store" aria-label="Current store">{session.store_id}</span><span className="store" aria-label="Current role">{session.roles.join(', ')}</span><button onClick={onLogout}>ออกจากระบบ</button></div></header><div className="dashboard-layout"><aside className="sidebar"><nav aria-label="Primary navigation">{visibleNav.map((item) => <span className={item.label.includes('Sales') ? 'nav-item nav-active' : 'nav-item'} aria-current={item.label.includes('Sales') ? 'page' : undefined} key={item.label}>{item.label}</span>)}</nav></aside><section className="dash-content sales-view"><div className="dash-head"><div><span className="eyebrow">SALES • POS COUNTER</span><h1>หน้าขาย</h1><p>เลือกสินค้าเพื่อเริ่มรายการ</p></div><div className="stat"><span>ยอดรายการนี้</span><strong>฿{subtotal.toFixed(2)}</strong></div></div>
     {loading && <div className="loading" role="status">กำลังโหลดสินค้า…</div>}
     {error && <div className="error" role="alert">{error}</div>}
     {success && <div className="success" role="status">ชำระเงินสำเร็จ · Order {success.order_id} · ฿{success.total}</div>}
     <div className="pos-grid"><section className="catalog"><div className="search-row"><input aria-label="ค้นหาสินค้า" placeholder="ค้นหาสินค้า…" value={query} onChange={e => setQuery(e.target.value)} /></div><div className="product-grid">{filtered.map(p => { const quantity = cart[p.variant_id] ?? 0; const remaining = p.stock - quantity; return <button className="product" key={p.variant_id} onClick={() => addToCart(p)} disabled={remaining <= 0} aria-label={`${p.name}, ราคา ${p.price} บาท, คงเหลือ ${remaining}`}><span className="product-icon">{p.name[0]}</span><strong>{p.name}</strong><small>{p.description || p.sku} • เหลือ {remaining}</small><b>฿{p.price}</b></button>; })}</div></section><aside className="cart"><div className="cart-head"><h2>ตะกร้า ({cartCount})</h2><span>รายการขาย</span></div>{!cartItems.length ? <div className="empty">ยังไม่มีสินค้า<br/><small>แตะสินค้าเพื่อเพิ่มลงรายการ</small></div> : <div className="cart-lines">{cartItems.map(p => <div className="cart-line" key={p.variant_id}><div><span>{p.name}</span><small>× {cart[p.variant_id]}</small></div><div><strong>฿{(Number(p.price) * cart[p.variant_id]).toFixed(2)}</strong><button type="button" onClick={() => removeFromCart(p)} aria-label={`ลด ${p.name}`}>−</button></div></div>)}</div>}<div className="payment-methods" aria-label="Payment method">{['cash','promptpay','card'].map(method => <button type="button" key={method} className={paymentMethod === method ? 'active' : ''} onClick={() => setPaymentMethod(method)}>{method === 'cash' ? 'เงินสด' : method === 'promptpay' ? 'PromptPay' : 'Card'}</button>)}</div><div className="cart-total"><span>รวมทั้งหมด</span><strong>฿{subtotal.toFixed(2)}</strong></div><button className="submit checkout" onClick={checkout} disabled={!cartItems.length || checkoutLoading}>{checkoutLoading ? 'กำลังดำเนินการ…' : `ชำระเงิน · ฿${subtotal.toFixed(2)}`}</button></aside></div></section></div></main>;
 }
 
-function App() { const [loggedIn, setLoggedIn] = useState(Boolean(sessionStorage.getItem(TOKEN_KEY))); return loggedIn ? <Sales onLogout={() => { sessionStorage.removeItem(TOKEN_KEY); setLoggedIn(false); }} /> : <Login onLogin={() => setLoggedIn(true)} />; }
+function App() {
+  const [session, setSession] = useState<Session | null>(null);
+  const [booting, setBooting] = useState(Boolean(sessionStorage.getItem(TOKEN_KEY)));
+  const [bootError, setBootError] = useState('');
+
+  useEffect(() => {
+    if (!sessionStorage.getItem(TOKEN_KEY)) { setBooting(false); return; }
+    api<Session>('/v1/me')
+      .then(setSession)
+      .catch(err => { sessionStorage.removeItem(TOKEN_KEY); setBootError(err instanceof Error ? err.message : 'เซสชันหมดอายุ'); })
+      .finally(() => setBooting(false));
+  }, []);
+
+  if (booting) return <main className="app"><section className="login-card"><div className="eyebrow">SECURE SESSION</div><h1>กำลังตรวจสอบเซสชัน</h1><p className="sub">กำลังยืนยันสิทธิ์การใช้งาน…</p></section></main>;
+  if (session) return <Sales session={session} onLogout={() => { sessionStorage.removeItem(TOKEN_KEY); setSession(null); }} />;
+  return <Login onLogin={setSession} />;
+}
+
 createRoot(document.getElementById('root')!).render(<React.StrictMode><App /></React.StrictMode>);
