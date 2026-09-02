@@ -13,14 +13,16 @@
 - Project Owner: repository owner
 - Technical Lead / Executor: ChatGPT through the connected GitHub workflow
 - Development interface: GPT/ChatGPT connector with direct repository access
-- AI development is the default execution model; the Owner does not perform routine implementation, testing, diagnosis, or repository maintenance.
+- AI development is the default execution model; the Owner does not perform routine implementation, testing, diagnosis, review, or repository maintenance.
 - OpenAI Platform API credentials are explicitly out of scope for the PRODX POS application, CI, tests, and core development workflow.
 - Connector authentication is external to the application repository and must never be copied into application configuration.
 - Owner-only actions are limited to business decisions, protected approvals, credentials genuinely required by deployment infrastructure, and operations unavailable to execution agents.
 
 ## Approved Engineering Workflow
 
-`Owner Command → ChatGPT/GitHub Connector → Plan → Implement → Automated Tests → Architecture/Security/Integrity Gates → Independent Review when required → Fix Findings → Acceptance → Merge → Main Verification → Next Milestone`
+`Owner Command → ChatGPT/GitHub Connector → Plan → Implement → Automated Tests → Architecture/Security/Integrity Gates → AI Technical Review → Fix Findings → Acceptance → Merge → Main Verification → Next Milestone`
+
+AI Technical Review is mandatory for ordinary engineering changes. Human code review is not a required merge prerequisite. Deterministic automated gates and contextual AI review are separate controls; failure of either blocks acceptance. The AI review result must be recorded in repository-visible PR evidence before merge.
 
 No milestone is considered complete without evidence from the applicable gates. Gates must not be weakened or bypassed.
 
@@ -57,7 +59,7 @@ If an AI-specific capability is introduced in the future, it must be optional, i
 - Core development must remain runnable without OpenAI Platform credentials.
 - Provider availability must not determine whether application tests or core CI can execute.
 - Full automated test/CI result for the post-change `main`: pending verification by GitHub Actions.
-- M2/M3 acceptance: NOT COMPLETE until implementation, gates, independent review when required by risk tier, acceptance, merge, and post-merge main verification are evidenced.
+- M2/M3 acceptance: NOT COMPLETE until implementation, gates, AI technical review, acceptance, merge, and post-merge main verification are evidenced.
 
 ## Secret Policy
 
@@ -68,14 +70,14 @@ If an AI-specific capability is introduced in the future, it must be optional, i
 
 ## Completion Rule
 
-A milestone may be marked complete only when implementation, relevant tests, production/security/architecture gates, independent review when required by risk tier, acceptance, merge, and post-merge main verification all pass.
+A milestone may be marked complete only when implementation, relevant tests, production/security/architecture gates, AI technical review, acceptance, merge, and post-merge main verification all pass.
 
 ## Update Discipline
 
 When work advances, update this file at the next meaningful milestone boundary with:
 1. Current milestone and status.
 2. PR/commit references.
-3. Gates and review result.
+3. Gates and AI review result.
 4. Remaining blockers.
 5. Next milestone.
 
