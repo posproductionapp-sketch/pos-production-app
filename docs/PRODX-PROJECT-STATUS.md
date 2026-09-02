@@ -5,22 +5,30 @@
 ## Last Verified
 
 - Verification date: 2026-09-02
-- OpenAI API is intentionally **not required** for core development or CI.
-- OpenCode autonomous workflow was removed from `main` because it required `OPENAI_API_KEY` and could block development when provider quota was exhausted.
+- PRODX POS core application, tests, CI, and development workflow are provider-independent.
+- The autonomous provider-specific runner that could block development has been removed from the active development path.
 
 ## Owner / Execution Model
 
 - Project Owner: repository owner
-- Technical Lead / Executor: ChatGPT
-- Primary coding agent: Codex when available
-- AI coding providers are optional development assistants, never a dependency of the POS runtime or core quality gates.
-- Owner-only actions are limited to credentials, protected approvals, and operations unavailable to the execution agents.
+- Technical Lead / Executor: ChatGPT through the connected GitHub workflow
+- Development interface: GPT/ChatGPT connector with direct repository access
+- AI development is the default execution model; the Owner does not perform routine implementation, testing, diagnosis, or repository maintenance.
+- OpenAI Platform API credentials are explicitly out of scope for the PRODX POS application, CI, tests, and core development workflow.
+- Connector authentication is external to the application repository and must never be copied into application configuration.
+- Owner-only actions are limited to business decisions, protected approvals, credentials genuinely required by deployment infrastructure, and operations unavailable to execution agents.
 
 ## Approved Engineering Workflow
 
-`Plan → Implement → Automated Tests → Architecture/Security/Integrity Gates → Independent Review when available → Fix findings → Acceptance → Merge → Main Verification → Next Milestone`
+`Owner Command → ChatGPT/GitHub Connector → Plan → Implement → Automated Tests → Architecture/Security/Integrity Gates → Independent Review when required → Fix Findings → Acceptance → Merge → Main Verification → Next Milestone`
 
 No milestone is considered complete without evidence from the applicable gates. Gates must not be weakened or bypassed.
+
+## Provider Independence Rule
+
+The repository must never require an OpenAI Platform API key to build, test, run CI, execute the POS application, or continue core development. A missing provider credential, provider quota, or provider outage must not stop core PRODX POS development.
+
+If an AI-specific capability is introduced in the future, it must be optional, isolated behind an explicit integration boundary, and independently gated. It must not become a required dependency of the POS runtime or core CI.
 
 ## Milestone Roadmap
 
@@ -46,17 +54,17 @@ No milestone is considered complete without evidence from the applicable gates. 
 
 ## Verification / Acceptance State
 
-- Core development must remain runnable without OpenAI API credentials.
-- AI provider availability must not determine whether application tests or core CI can execute.
+- Core development must remain runnable without OpenAI Platform credentials.
+- Provider availability must not determine whether application tests or core CI can execute.
 - Full automated test/CI result for the post-change `main`: pending verification by GitHub Actions.
 - M2/M3 acceptance: NOT COMPLETE until implementation, gates, independent review when required by risk tier, acceptance, merge, and post-merge main verification are evidenced.
 
-## Secret / Provider Configuration
+## Secret Policy
 
-- `OPENAI_API_KEY`: optional provider credential only; not required by the core application or core development workflow.
-- `ANTHROPIC_API_KEY`: optional provider credential only; not required by the core application or core development workflow.
-- Provider credentials must never be committed to the repository.
-- If an external AI provider is reintroduced later, it must be isolated behind an optional integration boundary and must not become a required application/CI dependency.
+- No AI provider credentials belong in the PRODX POS application configuration.
+- No provider API keys, access tokens, private keys, or other secrets may be committed to the repository.
+- Connector authentication remains outside the application repository.
+- Deployment credentials, when genuinely required by infrastructure, must use the deployment platform's supported secret mechanism and remain unrelated to the application development workflow.
 
 ## Completion Rule
 
