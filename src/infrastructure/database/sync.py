@@ -113,6 +113,7 @@ class SqlAlchemySyncRepository:
             raise KeyError(command_id)
         if row.actor_id != self.actor_id:
             raise SyncCommandConflict("Command belongs to another principal")
+        # Failed is a terminal state too: a late completion callback must never erase the authoritative error.
         if row.state in {"completed", "failed"}:
             return row
         row.result_json = json.dumps(result, separators=(",", ":"), sort_keys=True)
@@ -135,7 +136,7 @@ class SqlAlchemySyncRepository:
             raise KeyError(command_id)
         if row.actor_id != self.actor_id:
             raise SyncCommandConflict("Command belongs to another principal")
-        if row.state == "completed":
+        if row.state in {"completed", "failed"}:
             return row
         row.result_json = json.dumps({"error": error_code}, separators=(",", ":"), sort_keys=True)
         row.state = "failed"
