@@ -113,7 +113,7 @@ class SqlAlchemySyncRepository:
             raise KeyError(command_id)
         if row.actor_id != self.actor_id:
             raise SyncCommandConflict("Command belongs to another principal")
-        if row.state == "completed":
+        if row.state in {"completed", "failed"}:
             return row
         row.result_json = json.dumps(result, separators=(",", ":"), sort_keys=True)
         row.state = "completed"
