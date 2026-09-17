@@ -16,7 +16,7 @@ from src.config.settings import load_settings
 from src.domain.auth import Role
 from src.infrastructure.database.auth import AuthService, AuthenticationError
 from src.infrastructure.database.session import create_engine_from_env, session_factory
-from src.infrastructure.database.sync import SqlAlchemySyncRepository
+from src.infrastructure.database.sync import SqlAlchemySyncRepository, SyncCommandConflict
 from src.observability import metrics
 
 _settings = load_settings()
@@ -138,9 +138,13 @@ def me(current=Depends(principal)) -> dict:
 @app.post("/v1/sync/commands")
 def sync_command(request: SyncRequest, current=Depends(principal), session: Session = Depends(get_session)) -> dict:
     current.require(Role.CASHIER, Role.MANAGER, Role.ADMIN)
-    repository = SqlAlchemySyncRepository(session, tenant_id=current.tenant_id, store_id=current.store_id)
-    command = repository.record_received(command_id=request.command_id, operation=request.operation, payload=request.payload)
-    session.commit()
+    repository = SqlAlchemySyncRepository(session, tenant_id=current.tenant_id, store_id=current.store_id, actor_id=current.user_id)
+    try:
+        command = repository.record_received(command_id=request.command_id, operation=request.operation, payload=request.payload)
+        session.commit()
+    except SyncCommandConflict as exc:
+        session.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     return {"command_id": command.command_id, "state": command.state, "duplicate": command.result_json is not None}
 
 
